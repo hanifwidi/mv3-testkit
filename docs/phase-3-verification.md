@@ -173,3 +173,35 @@ Chromium: Phase [0](https://github.com/hanifwidi/mv3-testkit/actions/runs/426561
 step succeeded, including the negative-control checker and the batch evidence
 validator. Both now require `158.0.8127.18`, so the CI reports carried exactly
 that version. This is job step metadata; raw artifacts were not downloaded.
+
+## Pre-merge review (9 November 2026)
+
+Before merging the Phase 0–3 stack into `main`, parallel finders reviewed the
+lifecycle/evidence core, loader/preflight/config, CLI/reporter, and evidence
+gates/CI/packaging. They reported 13 candidates. The security, test-effectiveness
+and documentation finders and the completeness critic did not run: the session
+reached its usage limit. Each candidate was then checked directly before any fix.
+
+| Defect | Evidence | Change |
+| --- | --- | --- |
+| `doctor` reported PASS / `MV3_READY` for builds whose worker throws or has a syntax error at startup | Real Chromium: CDP showed the version `redundant` with Chrome's error | The loader requires the version to reach `activated`; a discarded worker is `MV3_WORKER_REGISTRATION_FAILED` (FAIL) with Chrome's message |
+| A test that failed and then skipped itself on retry gave a kit PASS with exit 0 | Built CLI against real Playwright: PASS, exit 0 | Playwright's outcome is checked first; the test is FLAKY and the run INCONCLUSIVE (exit 2) |
+| Interrupted tests counted as FAILED (a `maxFailures` stop reported 3 failures for 1) | Built CLI: `FAILED: 3` | Interrupted tests count as UNRUN (`FAILED: 1, UNRUN: 2`) |
+| Preflight failed manifests Chromium loads (UTF-8 BOM, comments) | Real Chromium activated both | Chromium's dialect is parsed; trailing commas are still rejected |
+| Extension paths containing a comma made Chromium load another directory | Chromium splits `--load-extension` on commas | Rejected in preflight (`MV3_MANIFEST_INVALID`) |
+| `check-evidence.mjs` exited 0 without validating when invoked through a symlinked path | Reproduced: exit 0 vs exit 1 | Realpath-based entry guard and a CLI test |
+| A failed `init` write left an empty file that blocked every later `init` | Regression test failed on the previous code | Files are tracked from creation; partial files and created empty directories are rolled back |
+| A negative-control runner failing before Playwright cleared its output could leave an older valid report for the checker | Logical: nothing ties the report to the run | CI and the documented procedure delete the old output first |
+| Invalid programmatic timeouts gave INCONCLUSIVE `MV3_UNEXPECTED_ERROR`; timeouts above 2^31−1 ms were clamped to 1 ms | Regression tests | `MV3ConfigError` (FAIL `MV3_CONFIG_INVALID`); oversized lifecycle timeouts rejected |
+| Docs: `pnpm doctor` runs pnpm's built-in; `raw-results/` called opt-in although Playwright writes `error-context.md` for every failure; launch timeout claimed unconditional profile removal | Reproduced (pnpm error; file observed) | Docs and CLI help corrected |
+
+Reviewed and deliberately unchanged: the four workflows still run on both push
+and pull request (branch pushes need CI); the conservative manifest path pattern;
+and the observer's requirement that a version still has the awaited status, which
+can yield INCONCLUSIVE but never a false PASS or FAIL.
+
+Executed local verification after these fixes (same environment and browser
+caveat as the second review pass): lint, typecheck and build exit 0; 173 Vitest
+and 23 validator tests passed; proof ×5, core ×3 and phase2 ×5 each 15 passed;
+the negative-control runner exited 1; and the installed-tarball smoke passed
+with the browser workflow. CI on the pinned browser must confirm the merge commit.
