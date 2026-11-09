@@ -10,5 +10,6 @@ export default defineConfig({
   projects: [
     { name: 'proof', testMatch: 'lifecycle.spec.ts' },
     { name: 'negative-control', testMatch: 'negative.spec.ts' },
+    { name: 'core', testMatch: 'core.spec.ts' },
   ],
 });

@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.25.0",
-  "engines": { "node": ">=24 <25" },
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "pnpm typecheck && pnpm test:unit && pnpm test:e2e",
@@ -12,7 +14,8 @@
     "test:e2e": "playwright test --project=proof",
     "test:repeat": "playwright test --project=proof --repeat-each=5",
     "test:negative": "playwright test --project=negative-control",
-    "browser:install": "playwright install chromium"
+    "browser:install": "playwright install chromium",
+    "test:core": "playwright test --project=core"
   },
   "devDependencies": {
     "@playwright/test": "1.65.0",

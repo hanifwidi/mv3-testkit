@@ -1,0 +1,68 @@
+import { describe, expect, it } from 'vitest';
+import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { inspectExtension, MV3PreflightError } from '../../src/core/manifest.js';
+import { lifecycleVerdict, type LifecycleEvidence } from '../../src/core/diagnostics.js';
+
+const evidence: LifecycleEvidence = {
+  workerScriptURL: 'chrome-extension://' + 'a'.repeat(32) + '/worker.js',
+  initialVersionId: 'version-1', finalVersionId: 'version-1',
+  stopped: true, restarted: true, identityChanged: true, events: [],
+};
+describe('diagnostics', () => {
+  it('uses state-specific diagnostic codes', () => {
+    expect(lifecycleVerdict(evidence, true).code).toBe('STATE_PRESERVED');
+    expect(lifecycleVerdict(evidence, false).code).toBe('STATE_LOST');
+  });
+  it('never passes incomplete worker evidence', () => {
+    expect(lifecycleVerdict({ ...evidence, restarted: false }, true).verdict).toBe('INCONCLUSIVE');
+    expect(lifecycleVerdict({ ...evidence, identityChanged: false }, false).verdict).toBe('INCONCLUSIVE');
+  });
+});
+
+describe('MV3 manifest preflight', () => {
+  async function fixture(worker: string, manifestOverride: Record<string, unknown> = {}) {
+    const path = await mkdtemp(join(tmpdir(), 'mv3-preflight-'));
+    await mkdir(join(path, 'nested'));
+    await writeFile(join(path, 'nested', 'sw.js'), '// fixture');
+    await writeFile(join(path, 'manifest.json'), JSON.stringify({
+      manifest_version: 3, name: 'Test', version: '0.0.1',
+      background: { service_worker: worker }, ...manifestOverride,
+    }));
+    return path;
+  }
+  it('accepts nested worker entries, not just background.js', async () => {
+    const path = await fixture('nested/sw.js');
+    try { expect((await inspectExtension(path)).workerPath).toBe('nested/sw.js'); }
+    finally { await rm(path, { recursive: true, force: true }); }
+  });
+  it('rejects incompatible manifest versions', async () => {
+    const path = await fixture('nested/sw.js', { manifest_version: 2 });
+    try { await expect(inspectExtension(path)).rejects.toMatchObject({ code: 'MANIFEST_VERSION' }); }
+    finally { await rm(path, { recursive: true, force: true }); }
+  });
+  it('rejects paths escaping an extension', async () => {
+    const path = await fixture('../outside.js');
+    try { await expect(inspectExtension(path)).rejects.toMatchObject({ code: 'WORKER_PATH' }); }
+    finally { await rm(path, { recursive: true, force: true }); }
+  });
+  it('rejects missing workers', async () => {
+    const path = await fixture('missing.js');
+    try { await expect(inspectExtension(path)).rejects.toMatchObject({ code: 'WORKER_UNREADABLE' }); }
+    finally { await rm(path, { recursive: true, force: true }); }
+  });
+  it('rejects worker symlinks that escape the extension root', async () => {
+    const path = await fixture('nested/sw.js');
+    const outside = await mkdtemp(join(tmpdir(), 'mv3-preflight-outside-'));
+    try {
+      await writeFile(join(outside, 'sw.js'), '// fixture');
+      await rm(join(path, 'nested/sw.js'));
+      await symlink(join(outside, 'sw.js'), join(path, 'nested/sw.js'));
+      await expect(inspectExtension(path)).rejects.toMatchObject({ code: 'WORKER_PATH' });
+    } finally {
+      await rm(path, { recursive: true, force: true });
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+});
