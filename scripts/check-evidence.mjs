@@ -1,7 +1,22 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+// The bundled-browser gate must pin the exact Chromium build of the installed
+// Playwright: PLAYWRIGHT_BROWSERS_PATH can point the "bundled" lookup at any
+// other binary without setting POC_CHROMIUM_PATH. browsers.json is not an
+// exported subpath, so read it next to playwright-core's package.json.
+function pinnedChromiumVersion() {
+  const test = createRequire(createRequire(import.meta.url).resolve('@playwright/test/package.json'));
+  const playwright = createRequire(test.resolve('playwright/package.json'));
+  const core = dirname(playwright.resolve('playwright-core/package.json'));
+  const { browsers } = JSON.parse(readFileSync(join(core, 'browsers.json'), 'utf8'));
+  return browsers.find(browser => browser.name === 'chromium')?.browserVersion;
+}
+export const PINNED_CHROMIUM_VERSION = pinnedChromiumVersion();
 
 const EXPECTED = {
   'test-extensions/healthy-counter': { verdict: 'PASS', after: 1 },
@@ -17,7 +32,9 @@ export function validateReport(report, fixture) {
   assert.equal(report.error, undefined, 'Infrastructure or cleanup error is not evidence');
   assert.equal(report.browserSource, 'playwright-bundled');
   assert.equal(report.driver, 'experimental-cdp-stopWorker');
-  assert.match(report.browserVersion ?? '', /^\d+\.\d+\.\d+\.\d+$/);
+  assert.match(PINNED_CHROMIUM_VERSION ?? '', /^\d+\.\d+\.\d+\.\d+$/, 'Cannot determine the pinned Playwright Chromium version');
+  assert.equal(report.browserVersion, PINNED_CHROMIUM_VERSION,
+    'Evidence must come from the Chromium build pinned by the installed Playwright');
   assert.match(report.extensionId ?? '', /^[a-p]{32}$/);
   assert.match(report.runId ?? '', /^[0-9a-f-]{20,}$/i);
   assert.equal(report.evidence?.stopped, true);

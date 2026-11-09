@@ -41,9 +41,11 @@ node scripts/check-negative.mjs artifacts/negative
 
 The second command rejects infrastructure failures; a nonzero runner exit by itself
 does not demonstrate detection. Playwright clears the selected output directory
-on each run. Preserve reports before reusing that directory. JSON timelines are
-attached to tests and written to `<output-directory>/<test>/evidence.json`; HTML
-is generated in `playwright-report/`. All reports stay local.
+on each run. Preserve reports before reusing that directory. The negative control
+defaults to `artifacts/negative`, so it never clears the main suite's `test-results/`.
+JSON timelines are attached to tests and written to `<output-directory>/<test>/evidence.json`;
+HTML is generated in `playwright-report/`, or in `<output-directory>-html/` when
+`POC_OUTPUT_DIR` is set. All reports stay local.
 
 See [lifecycle design and limits](docs/lifecycle.md) and [reproduction/troubleshooting](docs/reproduction.md).
 The `doctor`, `init`, `test` CLI and source API are experimental. Public npm

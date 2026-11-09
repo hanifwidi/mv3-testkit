@@ -18,10 +18,12 @@ pnpm test:e2e
 pnpm test:repeat
 ```
 
-Required acceptance: eight unit tests and all three browser checks pass; five
-repetitions must execute all fifteen browser tests without retries. This workflow
-succeeded in the [recorded CI run](verification.md#ci-verification), including the
-negative-control evidence gate. Local cloud browser runs remain blocked.
+Required acceptance: all Vitest unit/integration tests, the evidence-validator
+tests (`node --test scripts/check-evidence.test.mjs`) and all three browser checks
+pass; five repetitions must execute all fifteen browser tests without retries.
+The original Phase 0 gate had eight unit tests; later phases added more. That
+workflow succeeded in the [recorded CI run](verification.md#ci-verification),
+including the negative-control evidence gate. Local cloud browser runs remain blocked.
 
 The negative project deliberately fails. Verify both exit status and evidence:
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateReport, validateEvidenceBatch } from './check-evidence.mjs';
+import { validateReport, validateEvidenceBatch, PINNED_CHROMIUM_VERSION } from './check-evidence.mjs';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -15,7 +15,7 @@ function report(fixture, runId = '12345678-1234-1234-1234-123456789abc') {
   const verdict = fixture === healthy ? 'PASS' : 'FAIL';
   return {
     schemaVersion: 1, fixture, verdict, runId, browserSource: 'playwright-bundled',
-    browserVersion: '158.0.8127.18', extensionId: 'a'.repeat(32),
+    browserVersion: PINNED_CHROMIUM_VERSION, extensionId: 'a'.repeat(32),
     driver: 'experimental-cdp-stopWorker',
     evidence: { stopped: true, runningAgain: true,
       before: { counter: 1, bootId: 'first' },
@@ -79,6 +79,14 @@ test('rejects mismatched CDP version ID', () => {
 test('rejects infrastructure errors even when verdict says FAIL', () => {
   const r = report(broken); r.error = { phase: 'launch', message: 'no browser' };
   assert.throws(() => validateReport(r, broken));
+});
+test('pins the Chromium build of the installed Playwright', () => {
+  // Playwright 1.65.0 pins Chrome for Testing 158.0.8127.18 (revision 1254).
+  assert.match(PINNED_CHROMIUM_VERSION, /^\d+\.\d+\.\d+\.\d+$/);
+  // A relocated PLAYWRIGHT_BROWSERS_PATH holding another build still reports
+  // browserSource "playwright-bundled"; the version must expose the substitution.
+  const r = report(healthy); r.browserVersion = '153.0.8010.12';
+  assert.throws(() => validateReport(r, healthy), /pinned by the installed Playwright/);
 });
 test('requires two distinct reports and one fresh negative control', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'mv3-evidence-test-'));
