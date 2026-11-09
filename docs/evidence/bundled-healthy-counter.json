@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "runId": "f8909d93-6b56-429c-926c-77109607317a",
+  "fixture": "test-extensions/healthy-counter",
+  "startedAt": "2026-11-09T06:46:03.400Z",
+  "browserSource": "playwright-bundled",
+  "driver": "experimental-cdp-stopWorker",
+  "verdict": "INCONCLUSIVE",
+  "evidence": {
+    "stopped": false,
+    "runningAgain": false
+  },
+  "timeline": [
+    {
+      "at": "2026-11-09T06:46:03.409Z",
+      "event": "error",
+      "data": {
+        "phase": "launch",
+        "message": "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+      }
+    },
+    {
+      "at": "2026-11-09T06:46:03.410Z",
+      "event": "profile.removed"
+    }
+  ],
+  "error": {
+    "phase": "launch",
+    "message": "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+  },
+  "testId": "1f1785dee40219527314-2e8e005f64269bf1df62"
+}

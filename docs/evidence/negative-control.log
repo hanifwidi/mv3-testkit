@@ -1,0 +1,38 @@
+$ playwright test --project=negative-control
+
+Running 1 test using 1 worker
+
+(node:3415) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"fixture":"volatile-state-bug","verdict":"INCONCLUSIVE","error":{"phase":"launch","message":"browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"}}
+  ✘  1 [negative-control] › tests/e2e/negative.spec.ts:5:1 › negative control: persistence assertion fails for the volatile-state bug (24ms)
+
+
+  1) [negative-control] › tests/e2e/negative.spec.ts:5:1 › negative control: persistence assertion fails for the volatile-state bug
+
+    Error: expect(received).toBeUndefined()
+
+    Received: {"message": "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome
+    ╔════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright was just installed or updated.       ║
+    ║ Please run the following command to download new browsers: ║
+    ║                                                            ║
+    ║     pnpm exec playwright install                           ║
+    ║                                                            ║
+    ║ <3 Playwright Team                                         ║
+    ╚════════════════════════════════════════════════════════════╝", "phase": "launch"}
+
+       5 | test('negative control: persistence assertion fails for the volatile-state bug', async ({}, info) => {
+       6 |   const report = await recordedProbe('volatile-state-bug', info);
+    >  7 |   expect(report.error).toBeUndefined();
+         |                        ^
+       8 |   expect(report.evidence).toMatchObject({ stopped: true, runningAgain: true });
+       9 |   expect(report.evidence.after?.bootId).not.toBe(report.evidence.before?.bootId);
+      10 |   expect(report.verdict, 'State-loss regression must fail a normal persistence assertion').toBe('PASS');
+        at /workspace/mv3-testkit/tests/e2e/negative.spec.ts:7:24
+
+    Error Context: artifacts/negative/negative-negative-control--9e438--for-the-volatile-state-bug-negative-control/error-context.md
+
+  1 failed
+    [negative-control] › tests/e2e/negative.spec.ts:5:1 › negative control: persistence assertion fails for the volatile-state bug
+[ELIFECYCLE] Command failed with exit code 1.

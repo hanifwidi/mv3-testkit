@@ -1,0 +1,112 @@
+{
+  "source": "https://github.com/hanifwidi/mv3-testkit/actions/runs/42575203864/job/129021250716",
+  "commit": "db15bb3988ab5fa28212b14449de3fa68e3bda05",
+  "retrievedAt": "2026-11-09T06:48:39.455378+00:00",
+  "evidenceType": "Public job HTML check-step attributes; raw logs require sign-in and were not retrieved",
+  "steps": [
+    {
+      "name": "Set up job",
+      "number": "1",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:47:22Z",
+      "completed-at": "2026-11-09T06:47:22Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/1"
+    },
+    {
+      "name": "Run actions/checkout@v4",
+      "number": "2",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:47:22Z",
+      "completed-at": "2026-11-09T06:47:23Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/2"
+    },
+    {
+      "name": "Run actions/setup-node@v4",
+      "number": "3",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:47:23Z",
+      "completed-at": "2026-11-09T06:47:23Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/3"
+    },
+    {
+      "name": "Install pinned pnpm",
+      "number": "4",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:47:23Z",
+      "completed-at": "2026-11-09T06:47:24Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/4"
+    },
+    {
+      "name": "Run pnpm install --frozen-lockfile",
+      "number": "5",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:47:24Z",
+      "completed-at": "2026-11-09T06:47:27Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/5"
+    },
+    {
+      "name": "Run pnpm exec playwright install --with-deps chromium",
+      "number": "6",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:47:27Z",
+      "completed-at": "2026-11-09T06:47:44Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/6"
+    },
+    {
+      "name": "Run pnpm typecheck && pnpm test:unit",
+      "number": "7",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:47:44Z",
+      "completed-at": "2026-11-09T06:47:47Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/7"
+    },
+    {
+      "name": "Repeat all three real-browser checks five times (no retries)",
+      "number": "8",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:47:47Z",
+      "completed-at": "2026-11-09T06:47:59Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/8"
+    },
+    {
+      "name": "Verify the negative control actually fails for state loss",
+      "number": "9",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:47:59Z",
+      "completed-at": "2026-11-09T06:48:01Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/9"
+    },
+    {
+      "name": "Run actions/upload-artifact@v4",
+      "number": "10",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:48:01Z",
+      "completed-at": "2026-11-09T06:48:02Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/10"
+    },
+    {
+      "name": "Post Run actions/setup-node@v4",
+      "number": "19",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:48:02Z",
+      "completed-at": "2026-11-09T06:48:02Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/19"
+    },
+    {
+      "name": "Post Run actions/checkout@v4",
+      "number": "20",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:48:02Z",
+      "completed-at": "2026-11-09T06:48:02Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/20"
+    },
+    {
+      "name": "Complete job",
+      "number": "21",
+      "conclusion": "success",
+      "started-at": "2026-11-09T06:48:02Z",
+      "completed-at": "2026-11-09T06:48:02Z",
+      "log-url": "/hanifwidi/mv3-testkit/commit/db15bb3988ab5fa28212b14449de3fa68e3bda05/checks/129021250716/logs/21"
+    }
+  ]
+}

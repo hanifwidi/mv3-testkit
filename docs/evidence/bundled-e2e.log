@@ -1,0 +1,181 @@
+$ playwright test --project=proof
+
+Running 3 tests using 1 worker
+
+(node:3592) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"fixture":"healthy-counter","verdict":"INCONCLUSIVE","error":{"phase":"launch","message":"browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"}}
+  ✘  1 [proof] › tests/e2e/lifecycle.spec.ts:8:1 › healthy counter survives an observed worker stop and message reactivation (24ms)
+(node:3604) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"fixture":"volatile-state-bug","verdict":"INCONCLUSIVE","error":{"phase":"launch","message":"browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"}}
+  ✘  2 [proof] › tests/e2e/lifecycle.spec.ts:16:1 › detector diagnoses the intentionally broken in-memory counter as FAIL (22ms)
+(node:3616) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  3 [proof] › tests/e2e/lifecycle.spec.ts:24:1 › content script messages the worker in its isolated world and updates host DOM (13ms)
+
+
+  1) [proof] › tests/e2e/lifecycle.spec.ts:8:1 › healthy counter survives an observed worker stop and message reactivation
+
+    Error: {
+      "schemaVersion": 1,
+      "runId": "f8909d93-6b56-429c-926c-77109607317a",
+      "fixture": "test-extensions/healthy-counter",
+      "startedAt": "2026-11-09T06:46:03.400Z",
+      "browserSource": "playwright-bundled",
+      "driver": "experimental-cdp-stopWorker",
+      "verdict": "INCONCLUSIVE",
+      "evidence": {
+        "stopped": false,
+        "runningAgain": false
+      },
+      "timeline": [
+        {
+          "at": "2026-11-09T06:46:03.409Z",
+          "event": "error",
+          "data": {
+            "phase": "launch",
+            "message": "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+          }
+        },
+        {
+          "at": "2026-11-09T06:46:03.410Z",
+          "event": "profile.removed"
+        }
+      ],
+      "error": {
+        "phase": "launch",
+        "message": "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+      },
+      "testId": "1f1785dee40219527314-2e8e005f64269bf1df62"
+    }
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  - 9
+    + Received  + 3
+
+      Object {
+        "evidence": Object {
+    -     "after": Object {
+    -       "counter": 1,
+    +     "runningAgain": false,
+    +     "stopped": false,
+        },
+    -     "before": Object {
+    -       "counter": 1,
+    -     },
+    -     "runningAgain": true,
+    -     "stopped": true,
+    -   },
+    -   "verdict": "PASS",
+    +   "verdict": "INCONCLUSIVE",
+      }
+
+       8 | test('healthy counter survives an observed worker stop and message reactivation', async ({}, info) => {
+       9 |   const report = await recordedProbe('healthy-counter', info);
+    > 10 |   expect(report, JSON.stringify(report, null, 2)).toMatchObject({
+         |                                                   ^
+      11 |     verdict: 'PASS', evidence: { stopped: true, runningAgain: true, before: { counter: 1 }, after: { counter: 1 } },
+      12 |   });
+      13 |   expect(report.evidence.after?.bootId).not.toBe(report.evidence.before?.bootId);
+        at /workspace/mv3-testkit/tests/e2e/lifecycle.spec.ts:10:51
+
+    Error Context: artifacts/bundled/lifecycle-healthy-counter--e0e33-op-and-message-reactivation-proof/error-context.md
+
+  2) [proof] › tests/e2e/lifecycle.spec.ts:16:1 › detector diagnoses the intentionally broken in-memory counter as FAIL
+
+    Error: {
+      "schemaVersion": 1,
+      "runId": "d5aaae10-6fc3-43a6-b22e-a923cee2ce70",
+      "fixture": "test-extensions/volatile-state-bug",
+      "startedAt": "2026-11-09T06:46:03.794Z",
+      "browserSource": "playwright-bundled",
+      "driver": "experimental-cdp-stopWorker",
+      "verdict": "INCONCLUSIVE",
+      "evidence": {
+        "stopped": false,
+        "runningAgain": false
+      },
+      "timeline": [
+        {
+          "at": "2026-11-09T06:46:03.803Z",
+          "event": "error",
+          "data": {
+            "phase": "launch",
+            "message": "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+          }
+        },
+        {
+          "at": "2026-11-09T06:46:03.803Z",
+          "event": "profile.removed"
+        }
+      ],
+      "error": {
+        "phase": "launch",
+        "message": "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+      },
+      "testId": "1f1785dee40219527314-d12d37c31df63e30d23e"
+    }
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  - 9
+    + Received  + 3
+
+      Object {
+        "evidence": Object {
+    -     "after": Object {
+    -       "counter": 0,
+    +     "runningAgain": false,
+    +     "stopped": false,
+        },
+    -     "before": Object {
+    -       "counter": 1,
+    -     },
+    -     "runningAgain": true,
+    -     "stopped": true,
+    -   },
+    -   "verdict": "FAIL",
+    +   "verdict": "INCONCLUSIVE",
+      }
+
+      16 | test('detector diagnoses the intentionally broken in-memory counter as FAIL', async ({}, info) => {
+      17 |   const report = await recordedProbe('volatile-state-bug', info);
+    > 18 |   expect(report, JSON.stringify(report, null, 2)).toMatchObject({
+         |                                                   ^
+      19 |     verdict: 'FAIL', evidence: { stopped: true, runningAgain: true, before: { counter: 1 }, after: { counter: 0 } },
+      20 |   });
+      21 |   expect(report.evidence.after?.bootId).not.toBe(report.evidence.before?.bootId);
+        at /workspace/mv3-testkit/tests/e2e/lifecycle.spec.ts:18:51
+
+    Error Context: artifacts/bundled/lifecycle-detector-diagnos-a04dd-n-in-memory-counter-as-FAIL-proof/error-context.md
+
+  3) [proof] › tests/e2e/lifecycle.spec.ts:24:1 › content script messages the worker in its isolated world and updates host DOM
+
+    Error: browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome
+    ╔════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright was just installed or updated.       ║
+    ║ Please run the following command to download new browsers: ║
+    ║                                                            ║
+    ║     pnpm exec playwright install                           ║
+    ║                                                            ║
+    ║ <3 Playwright Team                                         ║
+    ╚════════════════════════════════════════════════════════════╝
+
+      35 |   try {
+      36 |     const path = resolve('test-extensions/healthy-counter');
+    > 37 |     context = await chromium.launchPersistentContext(profile, {
+         |                              ^
+      38 |       channel: 'chromium', headless: process.env.HEADED !== '1',
+      39 |       executablePath: process.env.POC_CHROMIUM_PATH,
+      40 |       ignoreDefaultArgs: ['--disable-extensions'],
+        at /workspace/mv3-testkit/tests/e2e/lifecycle.spec.ts:37:30
+
+    Error Context: artifacts/bundled/lifecycle-content-script-m-0f1c6--world-and-updates-host-DOM-proof/error-context.md
+
+  3 failed
+    [proof] › tests/e2e/lifecycle.spec.ts:8:1 › healthy counter survives an observed worker stop and message reactivation
+    [proof] › tests/e2e/lifecycle.spec.ts:16:1 › detector diagnoses the intentionally broken in-memory counter as FAIL
+    [proof] › tests/e2e/lifecycle.spec.ts:24:1 › content script messages the worker in its isolated world and updates host DOM
+[ELIFECYCLE] Command failed with exit code 1.

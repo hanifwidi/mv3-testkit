@@ -1,0 +1,48 @@
+name: Phase 0 proof
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - name: Install pinned pnpm
+        run: npm install --global pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Typecheck and unit tests
+        run: pnpm typecheck && pnpm test:unit
+      - name: Test evidence validator against tampering and missing reports
+        run: node --test scripts/check-evidence.test.mjs
+      - name: Repeat all three real-browser checks five times (no retries)
+        run: pnpm test:repeat
+      - name: Verify negative control actually fails for state loss
+        shell: bash
+        run: |
+          set +e
+          POC_OUTPUT_DIR=artifacts/negative pnpm test:negative > negative-control.log 2>&1
+          result=$?
+          set -e
+          cat negative-control.log
+          test "$result" -eq 1
+          node scripts/check-negative.mjs artifacts/negative
+      - name: Validate all lifecycle evidence from the real-browser tests
+        run: node scripts/check-evidence.mjs test-results 5 artifacts/negative
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: phase-0-evidence
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            test-results/
+            artifacts/
+            playwright-report/
+            negative-control.log
