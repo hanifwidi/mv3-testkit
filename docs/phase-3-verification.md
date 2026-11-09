@@ -136,3 +136,33 @@ record this follow-up separately; raw payloads were not downloaded.
 The local tarball is rebuilt with the corrected reporter and verified structurally.
 The technical recommendation remains GO for local alpha use, with public release
 and manual review prerequisites unchanged.
+
+## Second review pass (9 November 2026)
+
+A further review of the stacked Phase 0–3 code found the defects below. Each new
+regression test was first run against the previous code, where it failed.
+
+| Area | Defect | Change |
+| --- | --- | --- |
+| Report redaction | Labels matched only as whole words and only http(s) URLs were removed, so `GITHUB_TOKEN=…`, `DB_PASSWORD=…`, `clientSecret: …` and `postgres://user:password@host` passed through | Labels also match the end of a longer identifier; URLs of every scheme are removed. 13 leak cases failed before the fix |
+| Report titles | Empty root-suite/project segments rendered as ` ›  › file › test` | Empty segments are dropped |
+| `mv3tk test` exit code | Every signal except SIGINT was reported as 143, e.g. SIGKILL from an out-of-memory kill | 128 + signal number |
+| Phase 0 probe cleanup | A cleanup failure replaced `report.error`, hiding the root cause; `profile.removed` was logged when no profile existed | The first error is kept; cleanup failures still force INCONCLUSIVE and stay in the timeline |
+| Phase 0 CI artifact | The negative-control run replaced `playwright-report/`, so the uploaded artifact lost the proof suite's HTML; a bare `pnpm test:negative` cleared `test-results/` | The negative control defaults to `artifacts/negative`; with `POC_OUTPUT_DIR` set, HTML goes to `<dir>-html/` |
+| Evidence gate | `playwright-bundled` plus any four-part version passed, so a `PLAYWRIGHT_BROWSERS_PATH` holding another Chromium build satisfied the bundled-browser gate | Both checkers require the version pinned by the installed Playwright (`158.0.8127.18` for 1.65.0) |
+| Focused tests | Without `forbidOnly`, a committed `test.only` silently shrinks a CI run; core/phase2 have no report-count check | `forbidOnly: !!process.env.CI` in the repository config, the `init` starter and the example |
+
+Executed local verification (Node 24.22.1, pnpm 11.25.0, Playwright 1.65.0):
+
+- `pnpm lint`, `pnpm typecheck`, `pnpm build`, `git diff --check` — exit 0.
+- `pnpm test:unit` — 156 passed in 14 files; `node --test scripts/check-evidence.test.mjs` — 22 passed.
+- Browser runs used the session's pre-installed Chrome for Testing 153.0.8010.12
+  through a scratch `PLAYWRIGHT_BROWSERS_PATH`, because `cdn.playwright.dev` was
+  blocked. They are exploratory, not pinned-browser evidence: proof ×5 (15 passed),
+  negative control (runner exit 1), core ×3 (15 passed), phase2 ×5 (15 passed) and
+  the installed-tarball smoke (browser PASS; controls exit 0/1/2/2). Before the
+  version pin both checkers accepted these reports; afterwards both reject them
+  (actual `153.0.8010.12`, expected `158.0.8127.18`), as intended. No evidence
+  files from these runs are committed.
+
+CI on the pinned browser must still confirm these changes.
