@@ -11,5 +11,6 @@ export default defineConfig({
     { name: 'proof', testMatch: 'lifecycle.spec.ts' },
     { name: 'negative-control', testMatch: 'negative.spec.ts' },
     { name: 'core', testMatch: 'core*.spec.ts' },
+    { name: 'phase2', testMatch: 'phase2*.spec.ts' },
   ],
 });

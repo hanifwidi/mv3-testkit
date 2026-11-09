@@ -10,6 +10,8 @@ The fivefold browser suite and evidence-checked negative control succeeded in
 Local cloud browser runs remain INCONCLUSIVE due to network/browser policies.
 See the [verification report and evidence limits](docs/verification.md).
 Phase 1 has a [separate verification report](docs/phase-1-verification.md).
+The [Phase 2 lifecycle and fixture work](docs/phase-2.md) has its own
+[verification report](docs/phase-2-verification.md); results are tracked per phase.
 
 Requires Node 24, pnpm 11.25.0, and a Playwright-supported OS. Start in this checkout:
 

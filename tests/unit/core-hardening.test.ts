@@ -71,7 +71,15 @@ describe('forced worker restart', () => {
   it('rejects missing stop event', async () => {
     const cdp = new FakeCDP();
     cdp.emitStopped = false;
-    await expect(observed(cdp)).rejects.toThrow(/No observed stopped/);
+    let failure: unknown;
+    try { await observed(cdp); } catch (error) { failure = error; }
+    expect(failure).toBeInstanceOf(LifecycleUnverifiedError);
+    const evidence = (failure as LifecycleUnverifiedError).evidence;
+    expect(evidence?.stopped).toBe(false);
+    expect(evidence?.phases.map(p => p.state)).toEqual([
+      'UNDISCOVERED', 'STARTING', 'RUNNING', 'STOP_REQUESTED', 'INCONCLUSIVE',
+    ]);
+    expect(cdp.listenerCount('ServiceWorker.workerVersionUpdated')).toBe(0);
   });
   it('rejects missing restart event despite a fresh boot identity', async () => {
     const cdp = new FakeCDP();
@@ -122,6 +130,17 @@ describe('extension page path validation', () => {
 });
 
 describe('page-bound CDP cleanup', () => {
+  it('makes a post-restart detach failure INCONCLUSIVE with retained evidence', async () => {
+    const cdp = Object.assign(new FakeCDP(), { detach: vi.fn(async () => { throw new Error('detach failed'); }) });
+    const page = { context: () => ({ newCDPSession: async () => cdp }) } as unknown as Page;
+    let failure: unknown;
+    try {
+      await forceWorkerRestart({ page, workerURL, timeoutMs: 40,
+        trigger: async () => { cdp.restart(); }, getBootIdentity: async () => cdp.boot });
+    } catch (error) { failure = error; }
+    expect(failure).toBeInstanceOf(LifecycleUnverifiedError);
+    expect((failure as LifecycleUnverifiedError).evidence?.phases.at(-1)?.state).toBe('INCONCLUSIVE');
+  });
   it('detaches and removes listeners after a verified restart', async () => {
     const cdp = Object.assign(new FakeCDP(), { detach: vi.fn(async () => {}) });
     const page = { context: () => ({ newCDPSession: async () => cdp }) } as unknown as Page;
@@ -137,7 +156,7 @@ describe('page-bound CDP cleanup', () => {
     const page = { context: () => ({ newCDPSession: async () => cdp }) } as unknown as Page;
     await expect(forceWorkerRestart({ page, workerURL, timeoutMs: 40,
       trigger: async () => {}, getBootIdentity: async () => { throw undefined; },
-    })).rejects.toMatchObject({ errors: [undefined, cleanupError] });
+    })).rejects.toMatchObject({ errors: [expect.objectContaining({ cause: undefined }), cleanupError] });
     expect(cdp.detach).toHaveBeenCalledOnce();
     expect(cdp.listenerCount('ServiceWorker.workerVersionUpdated')).toBe(0);
   });

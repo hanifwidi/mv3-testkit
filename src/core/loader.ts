@@ -5,6 +5,7 @@ import { chromium, type BrowserContext, type Page } from '@playwright/test';
 import { cleanupAll } from '../resource-cleanup.js';
 import { inspectExtension } from './manifest.js';
 import { MV3RuntimeError } from './errors.js';
+import { MV3ContextError, readExtensionStorage, type StorageArea } from './page-helpers.js';
 
 export interface LoadedExtension {
   readonly context: BrowserContext;
@@ -12,6 +13,9 @@ export interface LoadedExtension {
   readonly workerURL: string;
   readonly manifest: Awaited<ReturnType<typeof inspectExtension>>['manifest'];
   newExtensionPage(path: string): Promise<Page>;
+  openPopupDocument(): Promise<Page>;
+  openOptionsDocument(): Promise<Page>;
+  readStorage(page: Page, keys: readonly string[], area?: StorageArea): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 }
 
@@ -73,20 +77,36 @@ export async function launchExtension(options: LaunchOptions): Promise<LoadedExt
       await current.waitForEvent('serviceworker', { predicate: w => match(w.url()), timeout: discoveryTimeoutMs });
     const id = new URL(worker.url()).hostname;
     let closing: Promise<void> | undefined;
+    const openPage = async (path: string): Promise<Page> => {
+      const url = extensionPageURL(id, path);
+      if (closing) throw new Error('Cannot create a page after extension cleanup started');
+      const page = await current.newPage();
+      try {
+        await page.goto(url);
+        return page;
+      } catch (cause) {
+        try { await page.close(); }
+        catch (closeError) { throw new AggregateError([cause, closeError], 'Page navigation and cleanup failed'); }
+        throw cause;
+      }
+    };
     return {
       context: current, id, workerURL: worker.url(), manifest: inspected.manifest,
-      async newExtensionPage(path: string): Promise<Page> {
-        const url = extensionPageURL(id, path);
-        if (closing) throw new Error('Cannot create a page after extension cleanup started');
-        const page = await current.newPage();
-        try {
-          await page.goto(url);
-          return page;
-        } catch (cause) {
-          try { await page.close(); }
-          catch (closeError) { throw new AggregateError([cause, closeError], 'Page navigation and cleanup failed'); }
-          throw cause;
-        }
+      newExtensionPage: openPage,
+      async openPopupDocument() {
+        const path = inspected.manifest.action?.default_popup;
+        if (!path) throw new MV3ContextError('MV3_PAGE_ENTRY_NOT_FOUND', 'Manifest has no popup document');
+        return openPage(path);
+      },
+      async openOptionsDocument() {
+        const path = inspected.manifest.options_ui?.page ?? inspected.manifest.options_page;
+        if (!path) throw new MV3ContextError('MV3_PAGE_ENTRY_NOT_FOUND', 'Manifest has no options document');
+        return openPage(path);
+      },
+      async readStorage(page, keys, area = 'local') {
+        if (closing) throw new MV3ContextError('MV3_STORAGE_CONTEXT_INVALID', 'Extension cleanup has started');
+        return readExtensionStorage({ context: current, id, page, keys, area,
+          hasStoragePermission: inspected.manifest.permissions?.includes('storage') ?? false });
       },
       close(): Promise<void> {
         // Concurrent callers share cleanup success/failure instead of skipping it.

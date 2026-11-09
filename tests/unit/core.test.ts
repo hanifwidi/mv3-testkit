@@ -6,6 +6,17 @@ import { inspectExtension, MV3PreflightError } from '../../src/core/manifest.js'
 import { lifecycleVerdict, type LifecycleEvidence } from '../../src/core/diagnostics.js';
 
 const evidence: LifecycleEvidence = {
+  runId: 'synthetic-unit-test', driver: 'experimental-cdp-stopWorker',
+  startedAt: '2026-11-09T00:00:00Z', extensionId: 'a'.repeat(32),
+  phases: [
+    { state: 'UNDISCOVERED', at: '2026-11-09T00:00:00Z', eventCursor: 0 },
+    { state: 'STARTING', at: '2026-11-09T00:00:00Z', eventCursor: 0 },
+    { state: 'RUNNING', at: '2026-11-09T00:00:00Z', eventCursor: 1 },
+    { state: 'STOP_REQUESTED', at: '2026-11-09T00:00:01Z', eventCursor: 1 },
+    { state: 'STOPPED_OBSERVED', at: '2026-11-09T00:00:01Z', eventCursor: 2 },
+    { state: 'EVENT_TRIGGERED', at: '2026-11-09T00:00:01Z', eventCursor: 2 },
+    { state: 'RUNNING_AGAIN', at: '2026-11-09T00:00:02Z', eventCursor: 3 },
+  ],
   workerScriptURL: 'chrome-extension://' + 'a'.repeat(32) + '/worker.js',
   initialVersionId: 'version-1', finalVersionId: 'version-1',
   stopped: true, restarted: true, identityChanged: true, events: [

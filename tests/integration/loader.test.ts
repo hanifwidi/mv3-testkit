@@ -18,6 +18,20 @@ beforeEach(() => {
 });
 afterEach(async () => { if (profile) await rm(profile, { recursive: true, force: true }); });
 
+it('rejects the incompatible manifest fixture before any browser/profile allocation', async () => {
+  await expect(launchExtension({ extensionPath: 'test-extensions/invalid-manifest' }))
+    .rejects.toMatchObject({ code: 'MANIFEST_VERSION' });
+  expect(chromium.launchPersistentContext).not.toHaveBeenCalled();
+  expect(profile).toBe('');
+});
+it('reports missing popup and options entries without opening a page', async () => {
+  const extension = await launchExtension({ extensionPath: 'test-extensions/healthy-counter' });
+  try {
+    await expect(extension.openPopupDocument()).rejects.toMatchObject({ code: 'MV3_PAGE_ENTRY_NOT_FOUND' });
+    await expect(extension.openOptionsDocument()).rejects.toMatchObject({ code: 'MV3_PAGE_ENTRY_NOT_FOUND' });
+  } finally { await extension.close(); }
+});
+
 it('uses an isolated profile and shares concurrent close operations', async () => {
   const extension = await launchExtension({ extensionPath: 'test-extensions/healthy-counter' });
   await access(profile);
