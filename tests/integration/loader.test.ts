@@ -1,20 +1,66 @@
+import { EventEmitter } from 'node:events';
 import { access, rm } from 'node:fs/promises';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { chromium, type BrowserContext } from '@playwright/test';
 import { launchExtension } from '../../src/core/loader.js';
+import { diagnoseError } from '../../src/core/errors.js';
 
 vi.mock('@playwright/test', () => ({ chromium: { launchPersistentContext: vi.fn() } }));
 const workerURL = `chrome-extension://${'a'.repeat(32)}/background.js`;
 let profile: string;
+let workerStatus: 'activated' | 'redundant' | 'silent';
 const close = vi.fn(async () => {});
 const waitForEvent = vi.fn();
+const detach = vi.fn(async () => {});
+// Fake page-bound CDP session reporting the worker version status, as Chromium does.
+function cdpSession() {
+  const session = Object.assign(new EventEmitter(), {
+    detach,
+    async send(method: string) {
+      if (method !== 'ServiceWorker.enable') throw new Error(`Unexpected CDP command ${method}`);
+      if (workerStatus === 'silent') return;
+      if (workerStatus === 'redundant')
+        session.emit('ServiceWorker.workerErrorReported', { errorMessage: { errorMessage: 'Uncaught Error: boom at startup' } });
+      session.emit('ServiceWorker.workerVersionUpdated', {
+        versions: [{ versionId: '0', scriptURL: workerURL, status: workerStatus, runningStatus: 'running' }],
+      });
+    },
+  });
+  return session;
+}
 beforeEach(() => {
   vi.resetAllMocks();
   profile = '';
+  workerStatus = 'activated';
   vi.mocked(chromium.launchPersistentContext).mockImplementation(async path => {
     profile = path;
-    return { close, serviceWorkers: () => [{ url: () => workerURL }], waitForEvent } as unknown as BrowserContext;
+    return { close, serviceWorkers: () => [{ url: () => workerURL }], waitForEvent,
+      pages: () => [{}], newCDPSession: async () => cdpSession() } as unknown as BrowserContext;
   });
+});
+
+it('requires the discovered worker to activate and detaches the CDP check', async () => {
+  const extension = await launchExtension({ extensionPath: 'test-extensions/healthy-counter' });
+  expect(extension.workerURL).toBe(workerURL);
+  expect(detach).toHaveBeenCalledOnce();
+  await extension.close();
+});
+it('fails a build whose worker Chrome discards at startup, and cleans up', async () => {
+  workerStatus = 'redundant';
+  let failure: unknown;
+  try { await launchExtension({ extensionPath: 'test-extensions/healthy-counter' }); }
+  catch (error) { failure = error; }
+  expect(failure).toMatchObject({ code: 'MV3_WORKER_REGISTRATION_FAILED', message: expect.stringContaining('boom at startup') });
+  expect(diagnoseError(failure)).toMatchObject({ verdict: 'FAIL', code: 'MV3_WORKER_REGISTRATION_FAILED' });
+  expect(close).toHaveBeenCalledOnce();
+  expect(detach).toHaveBeenCalledOnce();
+  await expect(access(profile)).rejects.toMatchObject({ code: 'ENOENT' });
+});
+it('times out a discovered worker that never activates', async () => {
+  workerStatus = 'silent';
+  await expect(launchExtension({ extensionPath: 'test-extensions/healthy-counter', discoveryTimeoutMs: 20 }))
+    .rejects.toMatchObject({ code: 'MV3_EXTENSION_LOAD_TIMEOUT', message: expect.stringContaining('did not activate') });
+  await expect(access(profile)).rejects.toMatchObject({ code: 'ENOENT' });
 });
 afterEach(async () => { if (profile) await rm(profile, { recursive: true, force: true }); });
 
@@ -87,8 +133,12 @@ it('passes a custom launch timeout and rejects invalid ones before allocating a 
   vi.mocked(chromium.launchPersistentContext).mockClear();
   profile = '';
   for (const launchTimeoutMs of [0, -1, 1.5, 2_147_483_648]) {
-    await expect(launchExtension({ extensionPath: 'test-extensions/healthy-counter', launchTimeoutMs }))
-      .rejects.toThrow(/launchTimeoutMs/);
+    let failure: unknown;
+    try { await launchExtension({ extensionPath: 'test-extensions/healthy-counter', launchTimeoutMs }); }
+    catch (error) { failure = error; }
+    expect(failure).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('launchTimeoutMs') });
+    // Programmatic callers (doctor()) get the documented configuration FAIL, not INCONCLUSIVE.
+    expect(diagnoseError(failure)).toMatchObject({ verdict: 'FAIL', code: 'MV3_CONFIG_INVALID' });
   }
   expect(chromium.launchPersistentContext).not.toHaveBeenCalled();
   expect(profile).toBe('');

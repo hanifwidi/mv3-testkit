@@ -5,7 +5,8 @@ import { LifecycleUnverifiedError } from './lifecycle.js';
 import { MV3ContextError } from './page-helpers.js';
 
 export class MV3RuntimeError extends Error {
-  constructor(readonly code: 'MV3_CHROMIUM_UNAVAILABLE' | 'MV3_CHROMIUM_LAUNCH_FAILED' | 'MV3_EXTENSION_LOAD_TIMEOUT' | 'MV3_EXTENSION_LOAD_FAILED',
+  constructor(readonly code: 'MV3_CHROMIUM_UNAVAILABLE' | 'MV3_CHROMIUM_LAUNCH_FAILED' | 'MV3_EXTENSION_LOAD_TIMEOUT' |
+    'MV3_EXTENSION_LOAD_FAILED' | 'MV3_WORKER_REGISTRATION_FAILED',
     message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = 'MV3RuntimeError';
@@ -20,7 +21,9 @@ export function diagnoseError(error: unknown): Diagnostic {
     return { verdict: 'FAIL', code: error.code.startsWith('PAGE_') ? 'MV3_PAGE_ENTRY_NOT_FOUND' :
       error.code === 'WORKER_MISSING' ? 'MV3_WORKER_MISSING' : 'MV3_MANIFEST_INVALID', message };
   if (error instanceof MV3RuntimeError)
-    return { verdict: 'INCONCLUSIVE', code: error.code, message };
+    // Chrome itself rejected the build's worker (a script error at startup): a
+    // build defect with direct evidence, not an environment problem.
+    return { verdict: error.code === 'MV3_WORKER_REGISTRATION_FAILED' ? 'FAIL' : 'INCONCLUSIVE', code: error.code, message };
   if (error instanceof LifecycleUnverifiedError)
     return { verdict: 'INCONCLUSIVE', code: 'MV3_LIFECYCLE_UNVERIFIED', message, evidence: error.evidence };
   if (error instanceof MV3ContextError)

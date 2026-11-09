@@ -19,6 +19,36 @@ export class MV3PreflightError extends Error {
   }
 }
 
+/**
+ * Chromium's manifest dialect: a leading UTF-8 BOM and // or block comments are
+ * accepted (trailing commas are not). Strings are copied verbatim, so "//" in a
+ * URL value is never treated as a comment.
+ */
+export function parseManifestJSON(text: string): unknown {
+  let json = '';
+  let i = text.charCodeAt(0) === 0xfeff ? 1 : 0;
+  while (i < text.length) {
+    const char = text[i];
+    if (char === '"') {
+      let end = i + 1;
+      while (end < text.length && text[end] !== '"') end += text[end] === '\\' ? 2 : 1;
+      json += text.slice(i, end + 1);
+      i = end + 1;
+    } else if (char === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i++;
+    } else if (char === '/' && text[i + 1] === '*') {
+      const end = text.indexOf('*/', i + 2);
+      if (end < 0) throw new SyntaxError('Unterminated comment in manifest.json');
+      json += ' ';
+      i = end + 2;
+    } else {
+      json += char;
+      i++;
+    }
+  }
+  return JSON.parse(json);
+}
+
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -49,9 +79,13 @@ export async function inspectExtension(inputPath: string): Promise<{
   path: string; manifest: MV3Manifest; workerPath: string;
 }> {
   const path = resolve(inputPath);
+  // Chromium reads --load-extension and --disable-extensions-except as
+  // comma-separated lists, so it would load a different directory than this one.
+  if (path.includes(','))
+    throw new MV3PreflightError('EXTENSION_PATH', `The extension path must not contain a comma: ${path}`);
   let value: unknown;
   try {
-    value = JSON.parse(await readFile(resolve(path, 'manifest.json'), 'utf8'));
+    value = parseManifestJSON(await readFile(resolve(path, 'manifest.json'), 'utf8'));
   } catch (cause) {
     throw new MV3PreflightError('MANIFEST_UNREADABLE', `Could not read manifest.json: ${String(cause)}`);
   }

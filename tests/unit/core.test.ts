@@ -96,3 +96,35 @@ describe('MV3 manifest preflight', () => {
     }
   });
 });
+
+describe('Chromium manifest dialect and extension path', () => {
+  async function build(manifestText: string, name = 'ext') {
+    const root = await mkdtemp(join(tmpdir(), 'mv3-dialect-'));
+    const path = join(root, name);
+    await mkdir(path);
+    await writeFile(join(path, 'sw.js'), '// fixture');
+    await writeFile(join(path, 'manifest.json'), manifestText);
+    return { root, path };
+  }
+  const body = '"manifest_version": 3, "name": "Test", "version": "1", "background": { "service_worker": "sw.js" }';
+  it('accepts a UTF-8 BOM and comments like Chromium, keeping "//" inside strings', async () => {
+    const { root, path } = await build(
+      `﻿// dev build\n{ ${body}, /* block */ "homepage_url": "https://example.com//docs/*x*/" }`);
+    try {
+      const { manifest } = await inspectExtension(path);
+      expect((manifest as unknown as { homepage_url: string }).homepage_url).toBe('https://example.com//docs/*x*/');
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+  it('still rejects what Chromium rejects: trailing commas and unterminated comments', async () => {
+    for (const text of [`{ ${body}, }`, `{ ${body} } /* open`]) {
+      const { root, path } = await build(text);
+      try { await expect(inspectExtension(path)).rejects.toMatchObject({ code: 'MANIFEST_UNREADABLE' }); }
+      finally { await rm(root, { recursive: true, force: true }); }
+    }
+  });
+  it('rejects an extension path containing a comma, which Chromium would split', async () => {
+    const { root, path } = await build(`{ ${body} }`, 'Clients, 2026');
+    try { await expect(inspectExtension(path)).rejects.toMatchObject({ code: 'EXTENSION_PATH' }); }
+    finally { await rm(root, { recursive: true, force: true }); }
+  });
+});

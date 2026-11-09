@@ -161,3 +161,13 @@ describe('page-bound CDP cleanup', () => {
     expect(cdp.listenerCount('ServiceWorker.workerVersionUpdated')).toBe(0);
   });
 });
+
+describe('timer bounds', () => {
+  it('rejects lifecycle and observer timeouts that setTimeout would clamp to 1 ms', async () => {
+    const cdp = new FakeCDP();
+    await expect(observeWorkerRestart(cdp as unknown as CDPSession, {
+      workerURL, timeoutMs: 2 ** 31, trigger: async () => {}, getBootIdentity: async () => 'first',
+    })).rejects.toThrow(/2147483647/);
+    expect(() => new WorkerTransitionObserver(workerURL).waitFor('running', { timeoutMs: 2 ** 31 })).toThrow(RangeError);
+  });
+});

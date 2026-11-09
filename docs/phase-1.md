@@ -21,12 +21,13 @@ are required. After `pnpm install --frozen-lockfile` and browser installation:
 
 ```sh
 pnpm build
-pnpm doctor --extension test-extensions/healthy-counter
+pnpm run doctor --extension test-extensions/healthy-counter
 node bin/mv3tk.mjs doctor --extension test-extensions/nested-worker
 pnpm test
 ```
 
-`pnpm doctor` builds first. For machine-readable JSON without package-manager
+`pnpm run doctor` builds first (plain `pnpm doctor` runs pnpm's own built-in
+diagnostics instead of this script). For machine-readable JSON without package-manager
 output, run `node bin/mv3tk.mjs doctor ...` after building. The command always
 attempts real Chromium loading and discovery; it does not substitute mock success.
 Exit codes are **0 PASS**, **1 FAIL** (invalid config/build), **2 INCONCLUSIVE**
@@ -46,7 +47,10 @@ Configuration is a JSON object, not executable TypeScript:
 
 `launchTimeoutMs` bounds Chromium startup (default 30000) so a hung launch is
 reported as `MV3_CHROMIUM_LAUNCH_FAILED` and its temporary profile is removed,
-instead of surfacing only as the outer test timeout. Both timeouts are optional.
+instead of surfacing only as the outer test timeout. A browser process that is
+still starting when the timeout fires can recreate that directory before
+Playwright terminates it. `discoveryTimeoutMs` bounds worker discovery and then
+activation. Both timeouts are optional.
 
 Save it as `mv3-testkit.config.json` in your extension project, then run
 `node /path/to/mv3-testkit/bin/mv3tk.mjs doctor --config /path/to/project/mv3-testkit.config.json`.
@@ -56,7 +60,10 @@ timeouts fail early. Only one of `--extension` and `--config` is accepted.
 
 Preflight verifies Chrome numeric versions (1–4 parts, each 0–65535, no leading
 zeros, not all zero), worker paths, and declared popup/options files. It follows
-symlinks to reject entries escaping the extension root. It does not validate every
+symlinks to reject entries escaping the extension root. Like Chromium, it accepts a
+leading UTF-8 BOM and `//` or `/* */` comments in `manifest.json` (not trailing
+commas). Extension paths containing a comma are rejected, because Chromium splits
+`--load-extension` on commas. It does not validate every
 Chrome manifest field or inspect every imported worker dependency.
 
 ## Diagnostic codes
@@ -68,9 +75,10 @@ Chrome manifest field or inspect every imported worker dependency.
 | `MV3_PAGE_ENTRY_NOT_FOUND` | Invalid, missing or escaping declared popup/options entry |
 | `MV3_CHROMIUM_UNAVAILABLE` | Pinned Playwright binary is missing; install Chromium |
 | `MV3_CHROMIUM_LAUNCH_FAILED` | Launch failed; original error is retained |
-| `MV3_EXTENSION_LOAD_TIMEOUT` / `MV3_EXTENSION_LOAD_FAILED` | Matching worker was not discovered; distinguishes timeout from other failures |
+| `MV3_EXTENSION_LOAD_TIMEOUT` / `MV3_EXTENSION_LOAD_FAILED` | Matching worker was not discovered or did not activate; distinguishes timeout from other failures |
+| `MV3_WORKER_REGISTRATION_FAILED` | FAIL: Chromium discarded the worker, e.g. a script error at startup; the message carries Chrome's error |
 | `MV3_CLEANUP_FAILED` / `MV3_OPERATION_AND_CLEANUP_FAILED` | Resource cleanup failed; no readiness PASS |
-| `MV3_READY` | Manifest checked, real browser/worker discovered, owned resources closed |
+| `MV3_READY` | Manifest checked, real browser launched, worker discovered and activated, owned resources closed |
 
 The preflight API retains field-level `MV3PreflightError.code` values. `diagnoseError`
 maps them to the doctor codes above. Lifecycle diagnostics retain `STATE_PRESERVED`,

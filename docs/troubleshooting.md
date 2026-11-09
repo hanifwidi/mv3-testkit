@@ -4,6 +4,7 @@
 | --- | --- |
 | `MV3_CHROMIUM_UNAVAILABLE` | Install the binary for the pinned Playwright version; use the same `PLAYWRIGHT_BROWSERS_PATH` during installation and execution |
 | Chromium launch failure | Read terminal errors; verify supported OS and system libraries with the official Playwright installer. "Did not start within …ms" means the bounded launch timed out; raise `launchTimeoutMs` only for a genuinely slow machine |
+| `MV3_WORKER_REGISTRATION_FAILED` | Chromium rejected the worker script at startup; fix the error quoted in the message (often a DOM API or a missing import in the worker) |
 | Worker discovery timeout | Check manifest worker path and build output, extension permissions/errors, and browser policy; use bundled Chromium |
 | `MV3_INIT_EXISTS` | Keep your existing files; initialize another directory or manually adopt the starter pattern |
 | Init symlink/path rejection | Use a project directory whose generated-file parents are ordinary directories |

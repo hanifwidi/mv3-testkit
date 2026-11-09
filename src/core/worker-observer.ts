@@ -53,7 +53,8 @@ export class WorkerTransitionObserver {
   } = {}): Promise<WorkerStatusEvent> {
     const after = options.after ?? 0;
     const timeoutMs = options.timeoutMs ?? 10_000;
-    if (!Number.isSafeInteger(after) || after < 0 || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    if (!Number.isSafeInteger(after) || after < 0 || !Number.isFinite(timeoutMs) || timeoutMs <= 0 ||
+      timeoutMs > 2_147_483_647) {
       throw new RangeError('Invalid worker observation cursor or timeout');
     }
     return new Promise((resolve, reject) => {

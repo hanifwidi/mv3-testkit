@@ -29,7 +29,7 @@ export async function doctor(options: LaunchOptions): Promise<DoctorReport> {
     report.browserVersion = extension.context.browser()?.version();
     report.extensionId = extension.id;
     report.workerURL = extension.workerURL;
-    Object.assign(report, { verdict: 'PASS', code: 'MV3_READY', message: 'Manifest, Chromium launch and extension worker discovery verified' });
+    Object.assign(report, { verdict: 'PASS', code: 'MV3_READY', message: 'Manifest, Chromium launch, extension worker discovery and activation verified' });
   } catch (error) {
     checks.push({ name: checks.length ? 'browser-and-worker' : 'manifest', passed: false });
     Object.assign(report, diagnoseError(error));

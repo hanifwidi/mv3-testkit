@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium, type BrowserContext, type Page } from '@playwright/test';
 import { cleanupAll } from '../resource-cleanup.js';
+import { MV3ConfigError } from './config.js';
 import { inspectExtension } from './manifest.js';
 import { MV3RuntimeError } from './errors.js';
 import { MV3ContextError, readExtensionStorage, type StorageArea } from './page-helpers.js';
@@ -31,8 +32,57 @@ export interface LaunchOptions {
 function boundedTimeout(name: string, value: number | undefined, fallback: number): number {
   const timeout = value ?? fallback;
   if (!Number.isSafeInteger(timeout) || timeout <= 0 || timeout > 2_147_483_647)
-    throw new RangeError(`${name} must be an integer from 1 to 2147483647`);
+    throw new MV3ConfigError('CONFIG_INVALID', `${name} must be an integer from 1 to 2147483647`);
   return timeout;
+}
+
+/**
+ * Chromium creates (and Playwright reports) the worker target even when the
+ * script throws during evaluation and the registration is discarded, so a
+ * discovered URL does not prove a usable worker: require 'activated'.
+ */
+async function waitForActivation(context: BrowserContext, workerURL: string, timeoutMs: number): Promise<void> {
+  const existing = context.pages()[0];
+  const page = existing ?? await context.newPage();
+  let failed = false;
+  try {
+    const session = await context.newCDPSession(page);
+    try {
+      const errors: string[] = [];
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const finish = (error?: unknown) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (error === undefined) resolve(); else reject(error);
+        };
+        const timer = setTimeout(() => finish(Object.assign(
+          new Error(`Worker did not activate within ${timeoutMs}ms`), { name: 'TimeoutError' })), timeoutMs);
+        session.on('ServiceWorker.workerErrorReported', ({ errorMessage }) => {
+          if (errorMessage.errorMessage && !errors.includes(errorMessage.errorMessage)) errors.push(errorMessage.errorMessage);
+        });
+        session.on('ServiceWorker.workerVersionUpdated', ({ versions }) => {
+          for (const version of versions) {
+            if (version.scriptURL !== workerURL) continue;
+            if (version.status === 'activated') finish();
+            else if (version.status === 'redundant') finish(new MV3RuntimeError('MV3_WORKER_REGISTRATION_FAILED',
+              `The extension worker failed to register${errors.length ? `: ${errors.join('; ')}` : ''}`));
+          }
+        });
+        session.send('ServiceWorker.enable').catch(finish);
+      });
+    } catch (error) {
+      failed = true;
+      throw error;
+    } finally {
+      try { await session.detach(); } catch (error) { if (!failed) throw error; }
+    }
+  } finally {
+    if (!existing) {
+      try { await page.close(); } catch (error) { if (!failed) throw error; }
+    }
+  }
 }
 
 export function extensionPageURL(id: string, path: string): string {
@@ -65,7 +115,7 @@ export async function launchExtension(options: LaunchOptions): Promise<LoadedExt
 
   const profile = await mkdtemp(join(tmpdir(), 'mv3-core-'));
   let context: BrowserContext | undefined;
-  let phase: 'launch' | 'discovery' = 'launch';
+  let phase: 'launch' | 'discovery' | 'activation' = 'launch';
   const dispose = async () => cleanupAll([
     { name: 'browser context', close: async () => { await context?.close(); } },
     { name: 'temporary profile', close: async () => { await rm(profile, { recursive: true, force: true }); } },
@@ -86,6 +136,8 @@ export async function launchExtension(options: LaunchOptions): Promise<LoadedExt
     const match = (url: string) => isTargetWorker(url, inspected.workerPath);
     const worker = current.serviceWorkers().find(w => match(w.url())) ??
       await current.waitForEvent('serviceworker', { predicate: w => match(w.url()), timeout: discoveryTimeoutMs });
+    phase = 'activation';
+    await waitForActivation(current, worker.url(), discoveryTimeoutMs);
     const id = new URL(worker.url()).hostname;
     let closing: Promise<void> | undefined;
     const openPage = async (path: string): Promise<Page> => {
@@ -128,13 +180,14 @@ export async function launchExtension(options: LaunchOptions): Promise<LoadedExt
     const unavailable = cause instanceof Error && /Executable doesn't exist/.test(cause.message);
     const timedOut = cause instanceof Error && cause.name === 'TimeoutError';
     const detail = cause instanceof Error ? cause.message : String(cause);
-    const error = new MV3RuntimeError(phase === 'discovery' ?
+    const error = cause instanceof MV3RuntimeError ? cause : new MV3RuntimeError(phase !== 'launch' ?
       timedOut ? 'MV3_EXTENSION_LOAD_TIMEOUT' : 'MV3_EXTENSION_LOAD_FAILED' :
       unavailable ? 'MV3_CHROMIUM_UNAVAILABLE' : 'MV3_CHROMIUM_LAUNCH_FAILED',
       phase === 'discovery' ? `Worker discovery failed for ${inspected.workerPath}: ${detail}` :
-        unavailable ? 'Playwright Chromium is missing; run pnpm exec playwright install --with-deps chromium' :
-          timedOut ? `Chromium did not start within ${launchTimeoutMs}ms: ${detail}` :
-            `Chromium could not launch: ${detail}`, { cause });
+        phase === 'activation' ? `Worker ${inspected.workerPath} did not activate: ${detail}` :
+          unavailable ? 'Playwright Chromium is missing; run pnpm exec playwright install --with-deps chromium' :
+            timedOut ? `Chromium did not start within ${launchTimeoutMs}ms: ${detail}` :
+              `Chromium could not launch: ${detail}`, { cause });
     try { await dispose(); }
     catch (cleanupError) { throw new AggregateError([error, cleanupError], 'Extension launch and cleanup failed'); }
     throw error;

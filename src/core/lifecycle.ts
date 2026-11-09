@@ -38,7 +38,9 @@ function bounded<T>(operation: Promise<T>, timeoutMs: number, label: string): Pr
  */
 export async function observeWorkerRestart(session: CDPSession, options: RestartOptions): Promise<LifecycleEvidence> {
   const timeoutMs = options.timeoutMs ?? 10_000;
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new RangeError('timeoutMs must be positive');
+  // setTimeout silently clamps delays above 2^31-1 ms to 1 ms.
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647)
+    throw new RangeError('timeoutMs must be positive and at most 2147483647');
   if (!/^chrome-extension:\/\/[a-p]{32}\/.+/.test(options.workerURL)) {
     throw new LifecycleUnverifiedError('Expected a concrete chrome-extension worker URL');
   }
