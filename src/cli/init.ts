@@ -1,4 +1,4 @@
-import { lstat, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, open, readFile, rm, rmdir } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { inspectExtension } from '../core/manifest.js';
 
@@ -36,10 +36,12 @@ test('loads the unpacked extension and discovers its worker', async ({ extension
   };
   // Check the complete plan before creating anything. Never follow project-internal
   // directory symlinks or overwrite an existing file, even on a second invocation.
+  const missingDirs: string[] = [];
   for (const dir of [root, join(root, 'tests'), join(root, 'tests/mv3')]) {
     const entry = await existing(dir);
     if (entry && (!entry.isDirectory() || entry.isSymbolicLink()))
       throw new MV3InitError('MV3_INIT_PATH_INVALID', `Expected a directory without a symlink: ${dir}`);
+    if (!entry) missingDirs.push(dir);
   }
   for (const file of Object.keys(files)) {
     if (await existing(join(root, file)))
@@ -49,16 +51,28 @@ test('loads the unpacked extension and discovers its worker', async ({ extension
   try {
     await mkdir(join(root, 'tests/mv3'), { recursive: true });
     for (const [file, contents] of Object.entries(files)) {
-      await writeFile(join(root, file), contents, { flag: 'wx' });
+      // Record the file as soon as the exclusive create succeeds: a failed write
+      // (ENOSPC, EFBIG, EIO) leaves an empty or partial file rollback must remove.
+      const handle = await open(join(root, file), 'wx');
       created.push(file);
+      try { await handle.writeFile(contents); }
+      finally { await handle.close(); }
     }
   } catch (cause) {
     const errors: unknown[] = [cause];
     for (const file of created.reverse()) {
       try {
-        // Preserve a file if another process edited it after creation.
-        if (await readFile(join(root, file), 'utf8') === files[file]) await rm(join(root, file));
+        // Remove only what this run wrote, complete or partial; preserve a file
+        // another process changed after creation.
+        if (files[file].startsWith(await readFile(join(root, file), 'utf8'))) await rm(join(root, file));
       } catch (error) { errors.push(error); }
+    }
+    // Remove directories this run created, deepest first, only while empty.
+    for (const dir of missingDirs.reverse()) {
+      try { await rmdir(dir); }
+      catch (error) {
+        if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes((error as NodeJS.ErrnoException).code ?? '')) errors.push(error);
+      }
     }
     if (errors.length > 1) throw new AggregateError(errors, 'Initialization and rollback failed');
     throw new MV3InitError('MV3_INIT_FAILED', `Initialization failed: ${String(cause)}`, { cause });
