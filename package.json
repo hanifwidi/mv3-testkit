@@ -1,0 +1,24 @@
+{
+  "name": "mv3-testkit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm typecheck && pnpm test:unit && pnpm test:e2e",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test --project=proof",
+    "test:repeat": "playwright test --project=proof --repeat-each=5",
+    "test:negative": "playwright test --project=negative-control",
+    "browser:install": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/chrome": "0.3.7",
+    "@types/node": "24.10.0",
+    "typescript": "5.9.3",
+    "vitest": "5.1.0"
+  }
+}

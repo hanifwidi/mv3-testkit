@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "runId": "d5aaae10-6fc3-43a6-b22e-a923cee2ce70",
+  "fixture": "test-extensions/volatile-state-bug",
+  "startedAt": "2026-11-09T06:46:03.794Z",
+  "browserSource": "playwright-bundled",
+  "driver": "experimental-cdp-stopWorker",
+  "verdict": "INCONCLUSIVE",
+  "evidence": {
+    "stopped": false,
+    "runningAgain": false
+  },
+  "timeline": [
+    {
+      "at": "2026-11-09T06:46:03.803Z",
+      "event": "error",
+      "data": {
+        "phase": "launch",
+        "message": "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+      }
+    },
+    {
+      "at": "2026-11-09T06:46:03.803Z",
+      "event": "profile.removed"
+    }
+  ],
+  "error": {
+    "phase": "launch",
+    "message": "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+  },
+  "testId": "1f1785dee40219527314-d12d37c31df63e30d23e"
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "runId": "eb1c3f40-4aa6-4d6a-9274-f7509794b569",
+  "fixture": "test-extensions/volatile-state-bug",
+  "startedAt": "2026-11-09T06:45:42.420Z",
+  "browserSource": "playwright-bundled",
+  "driver": "experimental-cdp-stopWorker",
+  "verdict": "INCONCLUSIVE",
+  "evidence": {
+    "stopped": false,
+    "runningAgain": false
+  },
+  "timeline": [
+    {
+      "at": "2026-11-09T06:45:42.432Z",
+      "event": "error",
+      "data": {
+        "phase": "launch",
+        "message": "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+      }
+    },
+    {
+      "at": "2026-11-09T06:45:42.434Z",
+      "event": "profile.removed"
+    }
+  ],
+  "error": {
+    "phase": "launch",
+    "message": "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     pnpm exec playwright install                           ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝"
+  },
+  "testId": "30cfb1659f62e12e73c6-487350b1c2619f41a5fb"
+}

@@ -1,0 +1,42 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ {
++   message: "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n" +
++     '╔════════════════════════════════════════════════════════════╗\n' +
++     '║ Looks like Playwright was just installed or updated.       ║\n' +
++     '║ Please run the following command to download new browsers: ║\n' +
++     '║                                                            ║\n' +
++     '║     pnpm exec playwright install                           ║\n' +
++     '║                                                            ║\n' +
++     '║ <3 Playwright Team                                         ║\n' +
++     '╚════════════════════════════════════════════════════════════╝',
++   phase: 'launch'
++ }
+- undefined
+
+    at file:///workspace/mv3-testkit/scripts/check-negative.mjs:19:8 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: {
+    phase: 'launch',
+    message: "browserType.launchPersistentContext: Executable doesn't exist at /workspace/.cache/ms-playwright/chromium-1254/chrome-linux64/chrome\n" +
+      '╔════════════════════════════════════════════════════════════╗\n' +
+      '║ Looks like Playwright was just installed or updated.       ║\n' +
+      '║ Please run the following command to download new browsers: ║\n' +
+      '║                                                            ║\n' +
+      '║     pnpm exec playwright install                           ║\n' +
+      '║                                                            ║\n' +
+      '║ <3 Playwright Team                                         ║\n' +
+      '╚════════════════════════════════════════════════════════════╝'
+  },
+  expected: undefined,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.22.1

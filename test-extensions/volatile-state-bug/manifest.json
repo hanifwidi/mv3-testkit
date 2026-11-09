@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "MV3 TestKit volatile counter (intentionally broken)",
+  "version": "0.0.1",
+  "permissions": ["storage"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{ "matches": ["http://127.0.0.1/*"], "js": ["content.js"] }]
+}

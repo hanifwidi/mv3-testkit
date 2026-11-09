@@ -1,0 +1,39 @@
+name: Phase 0 proof
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install pinned pnpm
+        run: npm install --global pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm typecheck && pnpm test:unit
+      - name: Repeat all three real-browser checks five times (no retries)
+        run: pnpm test:repeat
+      - name: Verify the negative control actually fails for state loss
+        shell: bash
+        run: |
+          set +e
+          POC_OUTPUT_DIR=artifacts/negative pnpm test:negative > negative-control.log 2>&1
+          result=$?
+          set -e
+          cat negative-control.log
+          test "$result" -eq 1
+          node scripts/check-negative.mjs artifacts/negative
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase-0-evidence
+          path: |
+            test-results/
+            artifacts/
+            playwright-report/
+            negative-control.log
