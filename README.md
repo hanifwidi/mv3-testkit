@@ -3,9 +3,11 @@
 Real-browser research into Manifest V3 service-worker state loss. This is a private,
 unreleased TypeScript experiment, not the Phase 1 toolkit or a published package.
 
-**Current result: INCONCLUSIVE / NO-GO for Phase 1.** Unit checks pass, but the
-cloud environment blocks the bundled-browser download. System Chromium also
-blocks unpacked extensions by policy. See the [actual verification report](docs/verification.md).
+**Technical result: PASS on Ubuntu 24.04 CI; GO for the next technical phase.**
+The fivefold browser suite and evidence-checked negative control succeeded in
+[GitHub Actions](https://github.com/hanifwidi/mv3-testkit/actions/runs/42575203864).
+Local cloud browser runs remain INCONCLUSIVE due to network/browser policies.
+See the [verification report and evidence limits](docs/verification.md).
 
 Requires Node 24, pnpm 11.25.0, and a Playwright-supported OS. Start in this checkout:
 

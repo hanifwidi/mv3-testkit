@@ -1,10 +1,11 @@
 # Phase 0 verification report
 
-**Outcome: INCONCLUSIVE. Recommendation: NO-GO for Phase 1 until the real-browser
-acceptance gates execute successfully.** This is an environmental blocker, not a
-demonstrated failure of the lifecycle technique or proof that it works.
+**Technical outcome: PASS on Ubuntu 24.04 CI. Recommendation: GO for the next
+technical phase on the pinned configuration, subject to maintainer review.**
+Local cloud browser checks remain **INCONCLUSIVE**. This is a technical feasibility
+proof, not a general reliability guarantee or release approval.
 
-Recorded 9 November 2026, approximately 13:46 WIB (UTC+7). Raw evidence uses UTC
+Recorded 9 November 2026, approximately 13:49 WIB (UTC+7). Raw evidence uses UTC
 timestamps. Base: `hanifwidi/mv3-testkit`, `main` commit
 `a58e103571b066742f6e681254d9851cbc0aac25`. Work is on
 `feat/phase-0-lifecycle-poc`, never pushed directly to `main`.
@@ -17,14 +18,48 @@ timestamps. Base: `hanifwidi/mv3-testkit`, `main` commit
   volatile worker-global storage. Both have a test-only extension message page.
 - A real-browser launcher, dynamic ID/worker discovery, experimental CDP
   stop/observe/message-reactivate harness, bounded readiness checks, JSON timeline,
-  boot-identity check, and cleanup. These browser capabilities remain **unverified**.
+  boot-identity check, and cleanup. These browser capabilities passed the strict CI gates described below.
 - A separate content-script isolated-world DOM test and a deliberately failing
   persistence assertion with an evidence checker that rejects setup errors.
 
 No production toolkit API, CLI, npm publication, release/license decision, browser
 policy change, merge, or subsequent-phase work was performed.
 
-## Executed checks
+## CI verification
+
+[Run 42575203864](https://github.com/hanifwidi/mv3-testkit/actions/runs/42575203864),
+[job 129021250716](https://github.com/hanifwidi/mv3-testkit/actions/runs/42575203864/job/129021250716)
+succeeded on implementation commit `db15bb3988ab5fa28212b14449de3fa68e3bda05`.
+Public job metadata shows all steps succeeded, including:
+
+| Step | Observed conclusion | What the committed command requires |
+| --- | --- | --- |
+| Frozen dependency install | success | Lockfile installation completes |
+| Playwright Chromium install with OS dependencies | success | Bundled Chromium available |
+| Typecheck and Vitest | success | TypeScript and all 8 evidence-classifier tests pass |
+| Repeat all three real-browser checks five times (no retries) | success | Healthy fixture PASS (`1 → 1`), volatile fixture FAIL (`1 → 0`), isolated-world DOM test; each repeated five times |
+| Verify negative control actually fails for state loss | success | Runner exits 1; checker exits 0 requiring no setup error, bundled browser, observed stop/restart, changed boot ID, counter `1 → 0` |
+| Upload evidence artifact | success | `phase-0-evidence` artifact uploaded |
+
+The repeated suite ran from 06:47:47 to 06:47:59 UTC; the negative-control gate
+from 06:47:59 to 06:48:01 UTC. These are observed step timestamps. The workflow has
+no retries, skipped tests, expected-failure annotations, or `continue-on-error`.
+Three tests × five repetitions configure fifteen browser checks; that command
+completed successfully. Missing lifecycle evidence would fail the gate.
+
+Individual console counts, actual browser-version strings, boot IDs, and CI JSON
+payloads were **not downloaded** in this session. Public HTML exposes per-step
+conclusions; raw logs and artifact download require GitHub sign-in. The API is
+blocked from this cloud machine. Assertion outcomes are inferred from the strict
+successful commands, not presented as locally retrieved raw JSON.
+
+[Captured public step metadata](evidence/ci-job-42575203864.json) records the source
+URL, exact commit, retrieval time, and all 13 successful step attributes. Signed-in
+reviewers can inspect/download `phase-0-evidence` from the linked run. Playwright
+1.65.0 configures Chromium 158.0.8127.18, revision 1254; this is the pinned dependency
+revision, not a browser-version value independently read from the CI artifact.
+
+## Local cloud checks
 
 The install used writable cache variables described in [reproduction.md](reproduction.md).
 Browser runs set `PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright`.
@@ -44,12 +79,13 @@ Browser runs set `PLAYWRIGHT_BROWSERS_PATH=/workspace/.cache/ms-playwright`.
 | `git diff --check` | Exit 0 | No whitespace errors |
 | Post-run `/tmp/mv3-testkit-*` directory check | No directories remained | Temporary profiles from executed runs removed |
 | `git ls-remote origin refs/heads/main` | Remote SHA matches base | Existing HTTPS Git read access works |
-| GitHub API repository probe | CONNECT 403 / Forbidden | API destination is blocked; PR creation cannot yet be verified |
+| GitHub API repository probe and `gh pr create --draft` | CONNECT 403 / POST GraphQL Forbidden | API blocked; PR was **not created** |
+| Feature-branch push | Success | Implementation branch exists on GitHub; no direct main push |
 
 There are no expected-failure annotations, disabled assertions, skipped tests, or
 automatic retries. Failed acceptance tests are retained as failures. The fivefold
-browser repeat gate was **not run** because the prerequisite binary is unavailable.
-The CI configuration is committed but has **not** been executed on GitHub.
+browser repeat gate was **not run locally** because the prerequisite binary is
+unavailable. It subsequently succeeded on GitHub CI as documented above.
 
 ## Raw evidence
 
@@ -73,7 +109,7 @@ was resolved with writable cache paths. The system browser's managed
 `ExtensionInstallBlocklist: ["*"]` explains its inability to load these fixtures.
 Platform browser policies and TLS verification were preserved.
 
-## Gate and next verification
+## Local reproduction and delivery prerequisites
 
 1. Enable `cdn.playwright.dev` in environment network settings and retry the pinned
    browser installer. Add further official redirect domains only if required by
@@ -87,7 +123,25 @@ Platform browser policies and TLS verification were preserved.
 4. Save new raw evidence, update this report, and review the experimental CDP
    assumptions before changing the recommendation. Check CI independently.
 
-Until those checks run, the POC's ability to load an extension, stop/reactivate its
-worker, and detect the real bug is **not proven**. No numerical reliability claim
-or full Phase 0 completion is made. Broader blueprint competitor/user research is
-also outside this technical implementation and remains outstanding.
+Those technical gates subsequently succeeded on CI; local reproduction remains
+blocked. No numerical reliability claim or full product-validation completion is
+made. Broader blueprint competitor/user research remains outstanding. Technical
+GO applies to the pinned forced-stop CI experiment only, not natural idle or other
+platforms. See [limitations](lifecycle.md). This task does not proceed to Phase 1.
+
+## Pull request delivery
+
+The implementation branch was pushed, but draft PR creation was denied by the API
+network policy. No PR number or URL is claimed. [Prepared PR text](pr-body.md) is
+saved for reuse. After allowing `api.github.com`, retry:
+
+```sh
+gh pr create --repo hanifwidi/mv3-testkit --base main \
+  --head feat/phase-0-lifecycle-poc --draft \
+  --title "Phase 0: MV3 worker lifecycle proof and verification report" \
+  --body-file docs/pr-body.md
+```
+
+Existing Git authentication does not itself prove API authorization. Verify the
+existing binding after enabling the destination before requesting any additional
+credential. Never supply token values in chat.

@@ -19,9 +19,9 @@ pnpm test:repeat
 ```
 
 Required acceptance: eight unit tests and all three browser checks pass; five
-repetitions must execute all fifteen browser tests without retries. These are
-required checks, not recorded successes until actually run. CI is configured for
-this workflow but its result must be checked on GitHub after a PR is created.
+repetitions must execute all fifteen browser tests without retries. This workflow
+succeeded in the [recorded CI run](verification.md#ci-verification), including the
+negative-control evidence gate. Local cloud browser runs remain blocked.
 
 The negative project deliberately fails. Verify both exit status and evidence:
 
