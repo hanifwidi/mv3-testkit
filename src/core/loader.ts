@@ -24,6 +24,15 @@ export interface LaunchOptions {
   headless?: boolean;
   executablePath?: string;
   discoveryTimeoutMs?: number;
+  /** Bounds Chromium startup. Playwright's own default (180 s) outlasts typical test timeouts. */
+  launchTimeoutMs?: number;
+}
+
+function boundedTimeout(name: string, value: number | undefined, fallback: number): number {
+  const timeout = value ?? fallback;
+  if (!Number.isSafeInteger(timeout) || timeout <= 0 || timeout > 2_147_483_647)
+    throw new RangeError(`${name} must be an integer from 1 to 2147483647`);
+  return timeout;
 }
 
 export function extensionPageURL(id: string, path: string): string {
@@ -51,9 +60,8 @@ function isTargetWorker(url: string, workerPath: string): boolean {
  */
 export async function launchExtension(options: LaunchOptions): Promise<LoadedExtension> {
   const inspected = await inspectExtension(options.extensionPath);
-  const discoveryTimeoutMs = options.discoveryTimeoutMs ?? 15_000;
-  if (!Number.isSafeInteger(discoveryTimeoutMs) || discoveryTimeoutMs <= 0 || discoveryTimeoutMs > 2_147_483_647)
-    throw new RangeError('discoveryTimeoutMs must be an integer from 1 to 2147483647');
+  const discoveryTimeoutMs = boundedTimeout('discoveryTimeoutMs', options.discoveryTimeoutMs, 15_000);
+  const launchTimeoutMs = boundedTimeout('launchTimeoutMs', options.launchTimeoutMs, 30_000);
 
   const profile = await mkdtemp(join(tmpdir(), 'mv3-core-'));
   let context: BrowserContext | undefined;
@@ -67,6 +75,9 @@ export async function launchExtension(options: LaunchOptions): Promise<LoadedExt
       channel: 'chromium',
       headless: options.headless ?? true,
       executablePath: options.executablePath,
+      // A hung launch fails as a classified diagnostic and still removes the
+      // profile, instead of surfacing only as an outer test timeout.
+      timeout: launchTimeoutMs,
       ignoreDefaultArgs: ['--disable-extensions'],
       args: [`--disable-extensions-except=${inspected.path}`, `--load-extension=${inspected.path}`],
     });
@@ -122,7 +133,8 @@ export async function launchExtension(options: LaunchOptions): Promise<LoadedExt
       unavailable ? 'MV3_CHROMIUM_UNAVAILABLE' : 'MV3_CHROMIUM_LAUNCH_FAILED',
       phase === 'discovery' ? `Worker discovery failed for ${inspected.workerPath}: ${detail}` :
         unavailable ? 'Playwright Chromium is missing; run pnpm exec playwright install --with-deps chromium' :
-          `Chromium could not launch: ${detail}`, { cause });
+          timedOut ? `Chromium did not start within ${launchTimeoutMs}ms: ${detail}` :
+            `Chromium could not launch: ${detail}`, { cause });
     try { await dispose(); }
     catch (cleanupError) { throw new AggregateError([error, cleanupError], 'Extension launch and cleanup failed'); }
     throw error;

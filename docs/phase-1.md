@@ -39,9 +39,14 @@ Configuration is a JSON object, not executable TypeScript:
 {
   "extensionPath": "./dist",
   "headless": true,
-  "discoveryTimeoutMs": 15000
+  "discoveryTimeoutMs": 15000,
+  "launchTimeoutMs": 30000
 }
 ```
+
+`launchTimeoutMs` bounds Chromium startup (default 30000) so a hung launch is
+reported as `MV3_CHROMIUM_LAUNCH_FAILED` and its temporary profile is removed,
+instead of surfacing only as the outer test timeout. Both timeouts are optional.
 
 Save it as `mv3-testkit.config.json` in your extension project, then run
 `node /path/to/mv3-testkit/bin/mv3tk.mjs doctor --config /path/to/project/mv3-testkit.config.json`.

@@ -69,6 +69,30 @@ it('retains discovery errors other than timeout instead of mislabeling them', as
   await expect(launchExtension({ extensionPath: 'test-extensions/healthy-counter' }))
     .rejects.toMatchObject({ code: 'MV3_EXTENSION_LOAD_FAILED', message: expect.stringContaining('browser closed during discovery') });
 });
+it('bounds Chromium startup and reports a hung launch as a classified, cleaned-up failure', async () => {
+  vi.mocked(chromium.launchPersistentContext).mockImplementation(async path => {
+    profile = path;
+    throw Object.assign(new Error('browserType.launchPersistentContext: Timeout 30000ms exceeded.'), { name: 'TimeoutError' });
+  });
+  await expect(launchExtension({ extensionPath: 'test-extensions/healthy-counter' })).rejects.toMatchObject({
+    code: 'MV3_CHROMIUM_LAUNCH_FAILED', message: expect.stringContaining('did not start within 30000ms'),
+  });
+  expect(vi.mocked(chromium.launchPersistentContext).mock.calls[0][1]).toMatchObject({ timeout: 30_000 });
+  await expect(access(profile)).rejects.toMatchObject({ code: 'ENOENT' });
+});
+it('passes a custom launch timeout and rejects invalid ones before allocating a profile', async () => {
+  const extension = await launchExtension({ extensionPath: 'test-extensions/healthy-counter', launchTimeoutMs: 45_000 });
+  await extension.close();
+  expect(vi.mocked(chromium.launchPersistentContext).mock.calls[0][1]).toMatchObject({ timeout: 45_000 });
+  vi.mocked(chromium.launchPersistentContext).mockClear();
+  profile = '';
+  for (const launchTimeoutMs of [0, -1, 1.5, 2_147_483_648]) {
+    await expect(launchExtension({ extensionPath: 'test-extensions/healthy-counter', launchTimeoutMs }))
+      .rejects.toThrow(/launchTimeoutMs/);
+  }
+  expect(chromium.launchPersistentContext).not.toHaveBeenCalled();
+  expect(profile).toBe('');
+});
 it('still removes the profile when browser cleanup fails', async () => {
   const extension = await launchExtension({ extensionPath: 'test-extensions/healthy-counter' });
   close.mockRejectedValue(new Error('close failed'));

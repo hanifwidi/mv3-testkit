@@ -14,20 +14,24 @@ export function resolveConfig(value: unknown, baseDirectory = process.cwd()): La
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new MV3ConfigError('CONFIG_INVALID', 'Configuration must be an object');
   const config = value as Record<string, unknown>;
-  const allowed = new Set(['extensionPath', 'headless', 'discoveryTimeoutMs']);
+  const allowed = new Set(['extensionPath', 'headless', 'discoveryTimeoutMs', 'launchTimeoutMs']);
   const unknown = Object.keys(config).filter(key => !allowed.has(key));
   if (unknown.length) throw new MV3ConfigError('CONFIG_INVALID', `Unknown configuration fields: ${unknown.join(', ')}`);
   if (typeof config.extensionPath !== 'string' || !config.extensionPath.trim())
     throw new MV3ConfigError('CONFIG_INVALID', 'extensionPath must be a nonempty string');
   if (config.headless !== undefined && typeof config.headless !== 'boolean')
     throw new MV3ConfigError('CONFIG_INVALID', 'headless must be a boolean');
-  const timeout = config.discoveryTimeoutMs ?? 15_000;
-  if (typeof timeout !== 'number' || !Number.isSafeInteger(timeout) || timeout < 1 || timeout > 2_147_483_647)
-    throw new MV3ConfigError('CONFIG_INVALID', 'discoveryTimeoutMs must be an integer from 1 to 2147483647');
+  const timeoutMs = (field: 'discoveryTimeoutMs' | 'launchTimeoutMs', fallback: number) => {
+    const value = config[field] ?? fallback;
+    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || value > 2_147_483_647)
+      throw new MV3ConfigError('CONFIG_INVALID', `${field} must be an integer from 1 to 2147483647`);
+    return value;
+  };
   return {
     extensionPath: resolve(baseDirectory, config.extensionPath),
     headless: config.headless ?? true,
-    discoveryTimeoutMs: timeout,
+    discoveryTimeoutMs: timeoutMs('discoveryTimeoutMs', 15_000),
+    launchTimeoutMs: timeoutMs('launchTimeoutMs', 30_000),
   };
 }
 
