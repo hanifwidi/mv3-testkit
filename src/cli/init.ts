@@ -20,7 +20,7 @@ export async function initProject(extensionPath: string, directory = process.cwd
   const files: Record<string, string> = {
     'mv3-testkit.config.json': JSON.stringify({ extensionPath: relative(root, extension.path) || '.' }, null, 2) + '\n',
     'playwright.mv3.config.mjs': `import { defineConfig } from '@playwright/test';
-export default defineConfig({ testDir: './tests/mv3', workers: 1, retries: 0, timeout: 90000 });
+export default defineConfig({ testDir: './tests/mv3', workers: 1, retries: 0, timeout: 90000, forbidOnly: !!process.env.CI });
 `,
     'tests/mv3/extension.spec.mjs': `import { expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
