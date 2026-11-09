@@ -61,6 +61,8 @@ No shell command is assembled from your arguments.
 Each test command creates a new `run-*` directory under the report root and emits
 `summary.json` and offline `index.html`. Existing reports are preserved. Read the
 counts: PASSED, FAILED, EXPECTED_FAILURE, FLAKY, SKIPPED and UNRUN are distinct.
+Interrupted tests (Ctrl+C, CI cancellation, a `maxFailures` stop) count as UNRUN.
+A test that failed and then skipped itself on retry counts as FLAKY.
 Zero passed tests, all-skipped cases or flaky recovery cannot produce a kit PASS.
 Results cover selected tests; a filtered run is not proof of the entire project.
 
@@ -72,10 +74,14 @@ starter configuration. Raw terminal errors remain visible for diagnosis.
 Default reports omit stdout/stderr, error stacks/payloads, attachments, storage,
 cookies and environment values. Common secret labels in names are redacted, also
 as part of longer names such as `GITHUB_TOKEN` or `clientSecret`, as are URLs of
-any scheme (for example `postgres://user:password@host`); HTML text is escaped. Test names and paths still must not contain secrets:
-no automatic heuristic can guarantee universal redaction. Playwright raw files
-under `raw-results/` are separate, user-controlled opt-in artifacts; review them
-before sharing. There is no telemetry or report upload by the toolkit.
+any scheme (for example `postgres://user:password@host`); HTML text is escaped.
+Test names and paths still must not contain secrets: no automatic heuristic can
+guarantee universal redaction. Only `summary.json` and `index.html` are sanitized.
+Each run directory also holds Playwright's raw output under `raw-results/`:
+Playwright writes `error-context.md` (raw error values and test source) for every
+failing test by default, plus any traces or screenshots your config enables.
+Review or remove `raw-results/` before sharing a run directory. There is no
+telemetry or report upload by the toolkit.
 
 See [troubleshooting](troubleshooting.md), [support matrix](support-matrix.md),
 and [security review](security-review.md) before using external extension code.

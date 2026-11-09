@@ -23,6 +23,24 @@ it.each([[], [testCase(['skipped'], 'skipped')], [testCase(['failed'], 'expected
   [testCase(['failed', 'passed'], 'flaky')], [testCase([])]])('does not claim PASS for unverified outcomes %j', (...tests) => {
   expect(summarize(tests as TestCase[], '/project', result).verdict).toBe('INCONCLUSIVE');
 });
+it('never passes a test that failed and then skipped itself on retry', () => {
+  // Playwright reports [failed, skipped] with a runtime skip as outcome 'flaky' and exits 0.
+  const summary = summarize([testCase(['passed']), testCase(['failed', 'skipped'], 'flaky', 'skipped')], '/project', result);
+  expect(summary.counts).toMatchObject({ PASSED: 1, FLAKY: 1, SKIPPED: 0 });
+  expect(summary.verdict).toBe('INCONCLUSIVE');
+});
+it('counts interrupted tests as unrun, not failed', () => {
+  const interrupted = { ...result, status: 'interrupted' } as FullResult;
+  const cancelled = summarize([testCase(['passed']), testCase(['interrupted'], 'skipped')], '/project', interrupted);
+  expect(cancelled.counts).toMatchObject({ PASSED: 1, FAILED: 0, UNRUN: 1 });
+  expect(cancelled.verdict).toBe('INCONCLUSIVE');
+  // A maxFailures stop keeps the real failure and does not inflate it.
+  const failed = { ...result, status: 'failed' } as FullResult;
+  const stopped = summarize([testCase(['failed'], 'unexpected'), testCase(['interrupted'], 'skipped'),
+    testCase(['interrupted'], 'skipped')], '/project', failed);
+  expect(stopped.counts).toMatchObject({ FAILED: 1, UNRUN: 2 });
+  expect(stopped.verdict).toBe('FAIL');
+});
 it('fails unexpected passes and global runner errors', () => {
   expect(summarize([testCase(['passed'], 'unexpected', 'failed')], '/project', result).verdict).toBe('FAIL');
   expect(summarize([testCase(['passed'])], '/project', result, 1).verdict).toBe('FAIL');

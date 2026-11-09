@@ -9,7 +9,8 @@ const help = `Usage:
   mv3tk init --extension <unpacked-directory> [--directory <project-directory>]
   mv3tk test [--config <playwright.config.mjs>] [--grep <regex>] [--headed] [--debug] [--report-dir <directory>]
 Exit codes: 0 PASS, 1 FAIL, 2 INCONCLUSIVE; test preserves other Playwright failure/signal codes.
-Doctor and init emit JSON. Test writes safe HTML/JSON summaries and keeps raw runner output in the terminal.
+Doctor and init emit JSON. Test writes sanitized summary.json/index.html; raw Playwright output
+(terminal, and raw-results/ with error-context.md for failures) is not sanitized.
 No idle/restart guarantee. Init never overwrites existing files.`;
 
 export async function main(args: string[], write: (text: string) => void = text => { process.stdout.write(text + '\n'); }): Promise<number> {

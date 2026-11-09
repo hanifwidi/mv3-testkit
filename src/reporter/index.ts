@@ -34,10 +34,14 @@ export function safeText(text: string): string {
 function classify(test: TestCase): ReportStatus {
   const last = test.results.at(-1);
   if (!last) return 'UNRUN';
-  if (last.status === 'skipped') return 'SKIPPED';
+  // Playwright's outcome covers every attempt: a test that failed and then
+  // skipped itself on retry is 'flaky', so it must not be counted as SKIPPED.
   const outcome = test.outcome();
   if (outcome === 'unexpected') return 'FAILED';
   if (outcome === 'flaky') return 'FLAKY';
+  // Interrupted (Ctrl+C, CI cancellation, a maxFailures stop) did not fail.
+  if (last.status === 'interrupted') return 'UNRUN';
+  if (last.status === 'skipped') return 'SKIPPED';
   if (test.expectedStatus === 'failed' && outcome === 'expected') return 'EXPECTED_FAILURE';
   return last.status === 'passed' ? 'PASSED' : 'FAILED';
 }
