@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
-import type { CDPSession } from '@playwright/test';
-import { describe, expect, it } from 'vitest';
-import { observeWorkerRestart, LifecycleUnverifiedError } from '../../src/core/lifecycle.js';
+import type { CDPSession, Page } from '@playwright/test';
+import { describe, expect, it, vi } from 'vitest';
+import { forceWorkerRestart, observeWorkerRestart, LifecycleUnverifiedError } from '../../src/core/lifecycle.js';
 import { WorkerTransitionObserver } from '../../src/core/worker-observer.js';
 import { extensionPageURL } from '../../src/core/loader.js';
 
@@ -119,4 +119,26 @@ describe('extension page path validation', () => {
       expect(() => extensionPageURL(id, path)).toThrow();
     },
   );
+});
+
+describe('page-bound CDP cleanup', () => {
+  it('detaches and removes listeners after a verified restart', async () => {
+    const cdp = Object.assign(new FakeCDP(), { detach: vi.fn(async () => {}) });
+    const page = { context: () => ({ newCDPSession: async () => cdp }) } as unknown as Page;
+    expect(await forceWorkerRestart({ page, workerURL, timeoutMs: 40,
+      trigger: async () => { cdp.restart(); }, getBootIdentity: async () => cdp.boot,
+    })).toMatchObject({ stopped: true, restarted: true });
+    expect(cdp.detach).toHaveBeenCalledOnce();
+    expect(cdp.listenerCount('ServiceWorker.workerVersionUpdated')).toBe(0);
+  });
+  it('retains the operation failure and detach failure, even for a falsy rejection', async () => {
+    const cleanupError = new Error('detach failed');
+    const cdp = Object.assign(new FakeCDP(), { detach: vi.fn(async () => { throw cleanupError; }) });
+    const page = { context: () => ({ newCDPSession: async () => cdp }) } as unknown as Page;
+    await expect(forceWorkerRestart({ page, workerURL, timeoutMs: 40,
+      trigger: async () => {}, getBootIdentity: async () => { throw undefined; },
+    })).rejects.toMatchObject({ errors: [undefined, cleanupError] });
+    expect(cdp.detach).toHaveBeenCalledOnce();
+    expect(cdp.listenerCount('ServiceWorker.workerVersionUpdated')).toBe(0);
+  });
 });

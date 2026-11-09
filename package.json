@@ -8,14 +8,16 @@
     "node": ">=24 <25"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "doctor": "pnpm build && node bin/mv3tk.mjs doctor",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm typecheck && pnpm test:unit && pnpm test:e2e",
+    "test": "pnpm typecheck && pnpm build && pnpm test:unit && node --test scripts/check-evidence.test.mjs && playwright test --project=proof --project=core",
     "test:unit": "vitest run",
     "test:e2e": "playwright test --project=proof",
     "test:repeat": "playwright test --project=proof --repeat-each=5",
     "test:negative": "playwright test --project=negative-control",
     "browser:install": "playwright install chromium",
-    "test:core": "playwright test --project=core"
+    "test:core": "pnpm build && playwright test --project=core"
   },
   "devDependencies": {
     "@playwright/test": "1.65.0",

@@ -88,16 +88,18 @@ export async function observeWorkerRestart(session: CDPSession, options: Restart
 export async function forceWorkerRestart(options: RestartOptions & { page: Page }): Promise<LifecycleEvidence> {
   const session = await options.page.context().newCDPSession(options.page);
   let failure: unknown;
+  let failed = false;
   try {
     return await observeWorkerRestart(session, options);
   } catch (error) {
+    failed = true;
     failure = error;
     throw error;
   } finally {
     try {
       await session.detach();
     } catch (cleanupError) {
-      if (!failure) throw cleanupError;
+      if (!failed) throw cleanupError;
       // Keep both failures observable: do not replace the root cause.
       throw new AggregateError([failure, cleanupError], 'Worker lifecycle and CDP cleanup both failed');
     }

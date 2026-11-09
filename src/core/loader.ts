@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { chromium, type BrowserContext, type Page } from '@playwright/test';
 import { cleanupAll } from '../resource-cleanup.js';
 import { inspectExtension } from './manifest.js';
+import { MV3RuntimeError } from './errors.js';
 
 export interface LoadedExtension {
   readonly context: BrowserContext;
@@ -47,11 +48,12 @@ function isTargetWorker(url: string, workerPath: string): boolean {
 export async function launchExtension(options: LaunchOptions): Promise<LoadedExtension> {
   const inspected = await inspectExtension(options.extensionPath);
   const discoveryTimeoutMs = options.discoveryTimeoutMs ?? 15_000;
-  if (!Number.isFinite(discoveryTimeoutMs) || discoveryTimeoutMs <= 0)
-    throw new RangeError('discoveryTimeoutMs must be positive');
+  if (!Number.isSafeInteger(discoveryTimeoutMs) || discoveryTimeoutMs <= 0 || discoveryTimeoutMs > 2_147_483_647)
+    throw new RangeError('discoveryTimeoutMs must be an integer from 1 to 2147483647');
 
   const profile = await mkdtemp(join(tmpdir(), 'mv3-core-'));
   let context: BrowserContext | undefined;
+  let phase: 'launch' | 'discovery' = 'launch';
   const dispose = async () => cleanupAll([
     { name: 'browser context', close: async () => { await context?.close(); } },
     { name: 'temporary profile', close: async () => { await rm(profile, { recursive: true, force: true }); } },
@@ -64,6 +66,7 @@ export async function launchExtension(options: LaunchOptions): Promise<LoadedExt
       ignoreDefaultArgs: ['--disable-extensions'],
       args: [`--disable-extensions-except=${inspected.path}`, `--load-extension=${inspected.path}`],
     });
+    phase = 'discovery';
     const current = context;
     const match = (url: string) => isTargetWorker(url, inspected.workerPath);
     const worker = current.serviceWorkers().find(w => match(w.url())) ??
@@ -91,8 +94,17 @@ export async function launchExtension(options: LaunchOptions): Promise<LoadedExt
       },
     };
   } catch (cause) {
+    const unavailable = cause instanceof Error && /Executable doesn't exist/.test(cause.message);
+    const timedOut = cause instanceof Error && cause.name === 'TimeoutError';
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    const error = new MV3RuntimeError(phase === 'discovery' ?
+      timedOut ? 'MV3_EXTENSION_LOAD_TIMEOUT' : 'MV3_EXTENSION_LOAD_FAILED' :
+      unavailable ? 'MV3_CHROMIUM_UNAVAILABLE' : 'MV3_CHROMIUM_LAUNCH_FAILED',
+      phase === 'discovery' ? `Worker discovery failed for ${inspected.workerPath}: ${detail}` :
+        unavailable ? 'Playwright Chromium is missing; run pnpm exec playwright install --with-deps chromium' :
+          `Chromium could not launch: ${detail}`, { cause });
     try { await dispose(); }
-    catch (cleanupError) { throw new AggregateError([cause, cleanupError], 'Extension launch and cleanup failed'); }
-    throw cause;
+    catch (cleanupError) { throw new AggregateError([error, cleanupError], 'Extension launch and cleanup failed'); }
+    throw error;
   }
 }

@@ -7,6 +7,9 @@ export type MV3Manifest = {
   version: string;
   background: { service_worker: string; type?: 'module' };
   permissions?: string[];
+  action?: { default_popup?: string };
+  options_page?: string;
+  options_ui?: { page: string };
 };
 
 export class MV3PreflightError extends Error {
@@ -18,6 +21,27 @@ export class MV3PreflightError extends Error {
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function validVersion(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^(0|[1-9]\d*)(\.(0|[1-9]\d*)){0,3}$/.test(value)) return false;
+  const parts = value.split('.').map(Number);
+  return parts.every(n => n <= 65535) && parts.some(n => n > 0);
+}
+
+async function checkPage(root: string, entry: unknown, field: string): Promise<void> {
+  if (typeof entry !== 'string' || !entry || !/^[A-Za-z0-9_./-]+$/.test(entry) ||
+    isAbsolute(entry) || entry.split('/').some(part => !part || part === '.' || part === '..'))
+    throw new MV3PreflightError('PAGE_ENTRY_INVALID', `${field} must be a normalized extension-local file path`);
+  try {
+    const actualRoot = await realpath(root);
+    const file = await realpath(resolve(root, entry));
+    const rel = relative(actualRoot, file);
+    if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel) || !(await stat(file)).isFile())
+      throw new Error('Entry is not a file within the extension');
+  } catch (cause) {
+    throw new MV3PreflightError('PAGE_ENTRY_UNREADABLE', `${field} (${entry}) is not accessible: ${String(cause)}`);
+  }
 }
 
 /** Validate a trusted, unpacked MV3 build without running its code. */
@@ -34,7 +58,7 @@ export async function inspectExtension(inputPath: string): Promise<{
   if (!record(value) || value.manifest_version !== 3)
     throw new MV3PreflightError('MANIFEST_VERSION', 'Expected manifest_version: 3');
   if (typeof value.name !== 'string' || !value.name.trim() ||
-      typeof value.version !== 'string' || !/^\d+\.\d+\.\d+(?:\.\d+)?$/.test(value.version))
+      !validVersion(value.version))
     throw new MV3PreflightError('MANIFEST_IDENTITY', 'Manifest name and a numeric Chrome extension version are required');
   if (!record(value.background) || typeof value.background.service_worker !== 'string' ||
       !value.background.service_worker.trim()) {
@@ -68,5 +92,16 @@ export async function inspectExtension(inputPath: string): Promise<{
   const rel = relative(actualRoot, actualFile);
   if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel))
     throw new MV3PreflightError('WORKER_PATH', 'Worker symlink escapes the extension directory');
+  if (value.action !== undefined) {
+    if (!record(value.action)) throw new MV3PreflightError('PAGE_ENTRY_INVALID', 'action must be an object');
+    // An empty default_popup explicitly disables the popup and is valid Chrome behavior.
+    if (value.action.default_popup !== undefined && value.action.default_popup !== '')
+      await checkPage(path, value.action.default_popup, 'action.default_popup');
+  }
+  if (value.options_page !== undefined) await checkPage(path, value.options_page, 'options_page');
+  if (value.options_ui !== undefined) {
+    if (!record(value.options_ui)) throw new MV3PreflightError('PAGE_ENTRY_INVALID', 'options_ui must be an object');
+    await checkPage(path, value.options_ui.page, 'options_ui.page');
+  }
   return { path, manifest: value as MV3Manifest, workerPath: worker };
 }
