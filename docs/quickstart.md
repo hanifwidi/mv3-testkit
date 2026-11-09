@@ -78,3 +78,8 @@ before sharing. There is no telemetry or report upload by the toolkit.
 
 See [troubleshooting](troubleshooting.md), [support matrix](support-matrix.md),
 and [security review](security-review.md) before using external extension code.
+
+
+The export allowlist applies to test summary reports. Doctor/init JSON, native
+terminal output and explicitly created raw Playwright artifacts are diagnostic
+outputs; inspect and redact them before sharing.

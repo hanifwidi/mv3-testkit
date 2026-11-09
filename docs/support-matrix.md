@@ -21,3 +21,7 @@ The package stays `private: true` with `UNLICENSED` metadata. Public license cho
 package-name/scope ownership, maintainer review, external dogfooding and the full
 release gate remain prerequisites for publication. No command in this phase
 publishes or merges a PR.
+
+
+`private: true` prevents npm publication; it is not a confidentiality control.
+GitHub source and CI artifacts follow the repository's access settings.

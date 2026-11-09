@@ -124,5 +124,15 @@ The targeted suite reported 8 passed and 1 failed before correction. Redaction n
 consumes the rest of a line after a sensitive assignment, also covering cookie
 lists, quoted JSON keys, access tokens and multiword values. Raw payload fields
 remain omitted. This intentionally may remove additional context from test names.
-The updated source must pass the same lint/unit/package/browser CI gates; the
-earlier source's success is not asserted as verification of this follow-up.
+After correction, lint/typecheck/build and all 133 unit/integration tests passed
+locally. Source `15e9ffb` then passed the full installed-consumer workflow in
+[run 42619309906](https://github.com/hanifwidi/mv3-testkit/actions/runs/42619309906),
+including audit, packaging, CLI controls and actual browser counter/restart tests.
+Phase [0](https://github.com/hanifwidi/mv3-testkit/actions/runs/42619309959),
+[1](https://github.com/hanifwidi/mv3-testkit/actions/runs/42619309939) and
+[2](https://github.com/hanifwidi/mv3-testkit/actions/runs/42619309958) also passed
+on that source. [Captured step conclusions](evidence/ci-phase-3-redaction-15e9ffb.json)
+record this follow-up separately; raw payloads were not downloaded.
+The local tarball is rebuilt with the corrected reporter and verified structurally.
+The technical recommendation remains GO for local alpha use, with public release
+and manual review prerequisites unchanged.

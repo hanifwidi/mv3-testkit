@@ -28,3 +28,10 @@ Full verification: [docs/phase-3-verification.md](https://github.com/hanifwidi/m
 [Quickstart](https://github.com/hanifwidi/mv3-testkit/blob/feat/phase-3-cli-prerelease/docs/quickstart.md),
 [security boundaries](https://github.com/hanifwidi/mv3-testkit/blob/feat/phase-3-cli-prerelease/docs/security-review.md).
 No public beta, automatic merge or Phase 4 action is included.
+
+
+Final security follow-up `15e9ffb` strengthens sensitive metadata redaction for
+Bearer credentials, cookie lists and multiword values. The regression test failed
+before correction; all 133 tests and [fresh installed-browser CI](https://github.com/hanifwidi/mv3-testkit/actions/runs/42619309906)
+passed afterward, alongside Phase 0–2. Details and captured step metadata are in
+the verification report.
