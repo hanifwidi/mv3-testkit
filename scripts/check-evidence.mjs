@@ -43,11 +43,15 @@ export function validateReport(report, fixture) {
   assert.ok(version, 'Missing selected worker versionId');
   assert.equal(timeline[stopped].data?.versionId, version);
   assert.equal(timeline[decision].data, spec.verdict);
-  const updates = timeline.filter(entry => entry.event === 'cdp.workerVersionUpdated');
-  assert.ok(updates.some(e => e.data?.versionId === version && e.data?.runningStatus === 'stopped'),
-    'Missing CDP stopped observation');
-  assert.ok(updates.some(e => e.data?.versionId === version && e.data?.runningStatus === 'running'),
-    'Missing CDP running observation');
+  const scriptURL = `chrome-extension://${report.extensionId}/background.js`;
+  const observedBetween = (status, start, end) => timeline.some((entry, i) =>
+    i > start && i < end && entry.event === 'cdp.workerVersionUpdated' &&
+    entry.data?.versionId === version && entry.data?.scriptURL === scriptURL &&
+    entry.data?.runningStatus === status);
+  assert.ok(observedBetween('stopped', requested, stopped),
+    'Missing CDP stopped observation between stop request and stop confirmation');
+  assert.ok(observedBetween('running', trigger, resumed),
+    'Missing CDP running observation between wake-up message and recovery confirmation');
 }
 
 async function collect(root) {

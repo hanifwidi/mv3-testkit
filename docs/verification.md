@@ -156,3 +156,43 @@ In response to maintainer review, this branch also includes additional protectio
 - A new evidence validator rejects missing, duplicate, inconsistent or out-of-sequence lifecycle reports, requires 5 reports for each of the two lifecycle fixtures and one independent negative control, and has tampering-focused tests. CI checks this before uploading artifacts and errors if no artifact files exist.
 
 **Review status:** These remediations still require a successful CI run on their updated commit and maintainer review. Nothing in this addendum is a claim that the new changes already passed GitHub Actions. The existing experimental CDP constraints and natural-idle limitations remain unchanged. The PR stays draft and is not approved for merge or npm publication.
+
+## Ordered CDP evidence follow-up (9 November 2026)
+
+The user subsequently created draft PR [#3](https://github.com/hanifwidi/mv3-testkit/pull/3)
+from this branch. Review found that the evidence validator checked for CDP
+`running`/`stopped` events anywhere in the timeline. An initial `running` event
+could therefore satisfy the checker even without a later CDP restart observation.
+
+The checker now requires a matching version ID and exact extension worker URL,
+with `stopped` strictly between the stop request and its confirmation, and
+`running` strictly between the wake-up message and recovery confirmation. The
+standalone negative-control checker uses this same validation. These checks
+validate report consistency; they are not authentication of arbitrary JSON files.
+
+Executed local verification:
+
+- New regression cases against the previous checker: 8 passed, 12 failed because
+  invalid reports were accepted (20 tests total). This reproduced the defect.
+- After correction and an added standalone CLI regression test:
+  `node --test scripts/check-evidence.test.mjs` — 21 passed, 0 failed/skipped.
+  These use synthetic reports and do not count as real-browser lifecycle proof.
+- `pnpm typecheck` — exit 0; `pnpm test:unit` — 11 passed, 0 failed/skipped.
+- `git diff --check` — exit 0.
+
+The current local cloud instance still reports the restricted network policy.
+Real-browser validation of this correction subsequently succeeded on implementation
+commit `70b6af842b80cb422a88f1c502a02d886e053176` in
+[run 42596679542](https://github.com/hanifwidi/mv3-testkit/actions/runs/42596679542).
+Public job metadata confirms success for all 15 steps, including bundled Chromium
+installation, the three browser checks repeated five times, the negative control,
+and the strengthened batch evidence validator. The artifact upload also succeeded.
+[Captured step metadata](evidence/ci-ordered-transitions-42596679542.json) records
+that observation. Raw CI payloads were not downloaded in this session.
+
+The remote `main` tree already contained the preceding Phase 0 implementation via
+squashed PR #1 (`ddfae29`), identical to this branch's prior `401ba9c` tree. That
+`main` ancestry is incorporated into this feature branch, preserving the validator
+fix, so PR #3 presents only the follow-up changes instead of the original Phase 0
+implementation again. This does not change `main` or merge PR #3. The PR remains
+draft; no publication or Phase 1 implementation is performed.
