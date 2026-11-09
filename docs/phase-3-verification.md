@@ -53,12 +53,31 @@ findings do not establish absence of unknown vulnerabilities.
 
 ## Required CI gate
 
-Pending push at the time of this initial report. The new workflow must install
-the tarball in a fresh consumer, invoke its executable and doctor, initialize the
-project, and run both generated smoke and first-party UI/lifecycle tests against
-real Chromium. Both tests must pass with actual browser-version/extension metadata.
-The workflow also checks all CLI outcome controls and verifies package contents.
-Phase 0, 1 and 2 browser workflows must remain green on the same source.
+**PASS for the private local alpha on source commit `76dedcd`.** All four push
+workflows have successful conclusions for every step:
+
+- [Phase 3 run 42618559124](https://github.com/hanifwidi/mv3-testkit/actions/runs/42618559124):
+  frozen installation, lint/typecheck/build/unit tests, audit, real Chromium
+  installation, tarball inspection, and fresh installed-consumer smoke all passed.
+  The consumer script requires the installed executable, non-overwriting init,
+  actual doctor readiness, both generated discovery and first-party UI/restart
+  tests passing, and actual browser-version/extension annotations. Negative,
+  skipped and flaky controls must retain their documented nonzero exits.
+- [Phase 0 run 42618559102](https://github.com/hanifwidi/mv3-testkit/actions/runs/42618559102):
+  repeated proof suite, negative control and ordered evidence gate passed.
+- [Phase 1 run 42618559050](https://github.com/hanifwidi/mv3-testkit/actions/runs/42618559050):
+  core tests repeated three times passed.
+- [Phase 2 run 42618559171](https://github.com/hanifwidi/mv3-testkit/actions/runs/42618559171):
+  three acceptance cases repeated five times passed.
+
+All artifact uploads succeeded. [Captured public step metadata](evidence/ci-phase-3-76dedcd.json)
+records source commit, retrieval time and individual conclusions. Raw CI
+payloads, browser versions and tarball checksums were not downloaded in this
+session; no values are invented here. The assertion outcomes above are inferred
+from the committed scripts and successful command conclusions.
+
+**Recommendation: technical GO for private/local alpha use on the pinned
+configuration, subject to code review. NO-GO for automatic public publication.**
 
 CI artifact `phase-3-local-alpha` includes the tarball, checksum metadata, audit
 snapshot, consumer record and whitelisted HTML/JSON reports. It excludes npm
@@ -78,5 +97,21 @@ independent adopter testing and the Phase 4 release gate remain outstanding.
 This phase does not authorize publishing, merging, or changing access credentials.
 
 The session's GitHub API denial remains a separate review-delivery blocker.
-A draft PR will be attempted only after the implementation is pushed; no PR
-number or creation success is claimed yet.
+`gh pr create --draft` was attempted against base `feat/phase-2-lifecycle-fixtures`
+and failed with POST `https://api.github.com/graphql`: Forbidden. The branch is
+pushed, but a Phase 3 PR has **not** been created or assigned a number here.
+
+[Create the stacked Phase 3 draft](https://github.com/hanifwidi/mv3-testkit/compare/feat/phase-2-lifecycle-fixtures...feat/phase-3-cli-prerelease?expand=1)
+using the [prepared description](phase-3-pr-body.md), or retry after the running
+instance permits API access:
+
+```sh
+gh pr create --repo hanifwidi/mv3-testkit --draft \
+  --base feat/phase-2-lifecycle-fixtures --head feat/phase-3-cli-prerelease \
+  --title "Phase 3: CLI workflows, safe reports and private local alpha" \
+  --body-file docs/phase-3-pr-body.md
+```
+
+This does not require putting a token in chat. Git HTTPS push works independently
+of the observed API domain denial. Review the prerequisite phases before merging
+this stacked branch; no merge or public release was performed.

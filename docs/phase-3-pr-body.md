@@ -8,8 +8,12 @@ published to npm. This branch stacks on `feat/phase-2-lifecycle-fixtures`.
 Verification: lint/typecheck/build passed; 133 unit/integration tests and 21
 evidence tests passed. The local tarball was installed in a fresh consumer, whose
 actual CLI preserved assertion-failure exits and reported all-skipped/flaky runs
-as INCONCLUSIVE. Local browser checks were not run; current CI results are tracked
-in the report below after execution.
+as INCONCLUSIVE. Local browser checks were not run. Source commit `76dedcd`
+subsequently passed the [Phase 3 installed-consumer workflow](https://github.com/hanifwidi/mv3-testkit/actions/runs/42618559124)
+with actual Chromium, doctor readiness and both generated discovery and counter
+UI/restart tests. Phase 0, 1 and 2 CI also passed on that source. Public per-step
+conclusions were verified and saved; raw CI payloads were not downloaded in this
+session. Recommendation: **technical GO for private/local alpha**, subject to review.
 
 Security review found and remediated one moderate minimatch advisory in dev-only
 lint dependencies. The subsequent audit snapshot reports zero findings. The
