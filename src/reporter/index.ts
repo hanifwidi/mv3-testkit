@@ -15,12 +15,20 @@ export interface Summary {
   runnerErrors: number; counts: Record<ReportStatus, number>; tests: TestSummary[];
 }
 
+// Any scheme, not only http(s): postgres://, redis://, wss:// etc. carry user:password@ credentials.
+// The lookbehinds start matches only at the beginning of a scheme/identifier,
+// which keeps matching linear on long names (redaction runs before truncation).
+const URL_PATTERN = /(?<![a-z0-9+.-])[a-z][a-z0-9+.-]*:\/\/[^\s)]+/gi;
+// A sensitive label may be a whole identifier or end one: token, GITHUB_TOKEN, clientSecret, x-api-key.
+const SECRET_ASSIGNMENT =
+  /(?<![A-Za-z0-9_-])([A-Za-z0-9_-]*(?:token|secret|passw(?:or)?d|authorization|cookie|api[_-]?key|private[_-]?key|session[_-]?id|credentials?))["']?\s*[:=][^\r\n]*/gi;
+
 /** Whitelisted metadata only; stdout, errors, attachments and storage are omitted. */
 export function safeText(text: string): string {
-  return text.replace(/https?:\/\/[^\s)]+/gi, '[url]')
+  return text.replace(URL_PATTERN, '[url]')
     // Consume the rest of the metadata line, including Bearer/Basic credentials,
     // multi-cookie headers and multiword values. Over-redaction is intentional.
-    .replace(/\b(access[_-]?token|refresh[_-]?token|token|secret|password|authorization|cookie|api[_-]?key)["']?\s*[:=][^\r\n]*/gi, '$1=[redacted]')
+    .replace(SECRET_ASSIGNMENT, '$1=[redacted]')
     .slice(0, 500);
 }
 function classify(test: TestCase): ReportStatus {
@@ -44,7 +52,9 @@ export function summarize(tests: readonly TestCase[], root: string, result: Full
       return value && pattern.test(value) ? value : undefined;
     };
     return {
-      testId: safeText(test.id), title: safeText(test.titlePath().join(' › ')),
+      // titlePath() starts with the unnamed root suite (and an unnamed project when
+      // the config defines none); drop empty segments instead of rendering " ›  › ".
+      testId: safeText(test.id), title: safeText(test.titlePath().filter(Boolean).join(' › ')),
       file: safeText(path.startsWith('..') ? basename(test.location.file) : path), line: test.location.line,
       status, attempts: test.results.length, durationMs: test.results.reduce((n, r) => n + r.duration, 0),
       browserVersion: annotation('mv3:browserVersion', /^\d+\.\d+\.\d+\.\d+$/),

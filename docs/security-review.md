@@ -18,7 +18,9 @@ Reviewed boundaries:
 - Report output uses a field allowlist, omits raw payloads by default, redacts
   common secret labels/URLs and escapes HTML. A sensitive assignment removes the
   rest of that metadata line, including Bearer/Basic credentials, cookie lists
-  and multiword values; over-redaction is intentional. Heuristic redaction is not a promise
+  and multiword values; labels also match as the end of a longer identifier
+  (`GITHUB_TOKEN`, `DB_PASSWORD`, `clientSecret`), and URLs of every scheme are
+  removed because database/socket URLs embed credentials. Over-redaction is intentional. Heuristic redaction is not a promise
   that user-chosen names contain no secrets. Raw terminal/Playwright artifacts
   require a separate human review before sharing.
 - Existing isolated browser profiles, extension-local document checks, explicit

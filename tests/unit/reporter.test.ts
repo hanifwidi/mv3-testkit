@@ -50,3 +50,21 @@ it('redacts common secret labels/URLs and escapes HTML metadata', () => {
   expect(html).not.toContain('<img');
   expect(html).toContain('&lt;img');
 });
+it.each([
+  'GITHUB_TOKEN=ghp_private-credential', 'NPM_TOKEN: private-credential', 'CLIENT_SECRET=private-credential',
+  'DB_PASSWORD=private-credential', 'db_passwd=private-credential', 'x_api_key: private-credential',
+  'authToken=private-credential', 'clientSecret: private-credential', 'SESSION_ID=private-credential',
+  'postgres://admin:private-credential@db.internal/app', 'wss://user:private-credential@socket.example',
+  'redis://:private-credential@cache:6379', 'DATABASE_URL=mongodb+srv://app:private-credential@cluster0',
+])('redacts prefixed, camelCase and non-HTTP credential metadata: %s', value => {
+  expect(safeText(value)).not.toContain('private-credential');
+});
+it('keeps ordinary words that merely contain a sensitive label', () => {
+  const text = 'tokenizer: splits words; secretary: Ada; passwords are hashed';
+  expect(safeText(text)).toBe(text);
+});
+it('omits the unnamed root suite and project from report titles', () => {
+  const test = testCase(['passed']);
+  test.titlePath = () => ['', '', 'counter.spec.mjs', 'counter survives a restart'];
+  expect(summarize([test], '/project', result).tests[0].title).toBe('counter.spec.mjs › counter survives a restart');
+});

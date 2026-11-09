@@ -70,8 +70,9 @@ Doctor/init use 0 PASS, 1 FAIL, 2 INCONCLUSIVE. No tests are silently retried by
 starter configuration. Raw terminal errors remain visible for diagnosis.
 
 Default reports omit stdout/stderr, error stacks/payloads, attachments, storage,
-cookies and environment values. Common secret labels/URLs in names are redacted
-and HTML text is escaped. Test names and paths still must not contain secrets:
+cookies and environment values. Common secret labels in names are redacted, also
+as part of longer names such as `GITHUB_TOKEN` or `clientSecret`, as are URLs of
+any scheme (for example `postgres://user:password@host`); HTML text is escaped. Test names and paths still must not contain secrets:
 no automatic heuristic can guarantee universal redaction. Playwright raw files
 under `raw-results/` are separate, user-controlled opt-in artifacts; review them
 before sharing. There is no telemetry or report upload by the toolkit.
