@@ -1,0 +1,48 @@
+name: Phase 3 local alpha and CLI
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  consumer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - run: npm install --global pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint && pnpm typecheck && pnpm build && pnpm test:unit
+      - name: Audit all source dependencies
+        run: |
+          mkdir -p artifacts
+          pnpm audit --json > artifacts/dependency-audit.json
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Build and inspect private local tarball
+        run: pnpm pack:local && node scripts/verify-package.mjs artifacts/mv3-testkit-0.1.0-alpha.0.tgz
+      - name: Install tarball in a fresh consumer and test CLI and real counter workflows
+        run: node scripts/smoke-package.mjs artifacts/mv3-testkit-0.1.0-alpha.0.tgz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: phase-3-local-alpha
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            artifacts/*.tgz
+            artifacts/package-verification.json
+            artifacts/dependency-audit.json
+            artifacts/consumer-smoke.json
+            artifacts/consumer-*/positive-reports/run-*/summary.json
+            artifacts/consumer-*/positive-reports/run-*/index.html
+            artifacts/consumer-*/negative-reports/run-*/summary.json
+            artifacts/consumer-*/negative-reports/run-*/index.html
+            artifacts/consumer-*/skipped-reports/run-*/summary.json
+            artifacts/consumer-*/skipped-reports/run-*/index.html
+            artifacts/consumer-*/flaky-reports/run-*/summary.json
+            artifacts/consumer-*/flaky-reports/run-*/index.html
+            artifacts/consumer-*/browser-reports/run-*/summary.json
+            artifacts/consumer-*/browser-reports/run-*/index.html

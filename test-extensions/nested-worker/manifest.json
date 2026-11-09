@@ -1,0 +1,6 @@
+{
+  "manifest_version": 3,
+  "name": "MV3 TestKit nested worker example",
+  "version": "0.0.1",
+  "background": { "service_worker": "nested/sw.js" }
+}

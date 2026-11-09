@@ -1,7 +1,22 @@
 import assert from 'node:assert/strict';
+import { readFileSync, realpathSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+// The bundled-browser gate must pin the exact Chromium build of the installed
+// Playwright: PLAYWRIGHT_BROWSERS_PATH can point the "bundled" lookup at any
+// other binary without setting POC_CHROMIUM_PATH. browsers.json is not an
+// exported subpath, so read it next to playwright-core's package.json.
+function pinnedChromiumVersion() {
+  const test = createRequire(createRequire(import.meta.url).resolve('@playwright/test/package.json'));
+  const playwright = createRequire(test.resolve('playwright/package.json'));
+  const core = dirname(playwright.resolve('playwright-core/package.json'));
+  const { browsers } = JSON.parse(readFileSync(join(core, 'browsers.json'), 'utf8'));
+  return browsers.find(browser => browser.name === 'chromium')?.browserVersion;
+}
+export const PINNED_CHROMIUM_VERSION = pinnedChromiumVersion();
 
 const EXPECTED = {
   'test-extensions/healthy-counter': { verdict: 'PASS', after: 1 },
@@ -17,7 +32,9 @@ export function validateReport(report, fixture) {
   assert.equal(report.error, undefined, 'Infrastructure or cleanup error is not evidence');
   assert.equal(report.browserSource, 'playwright-bundled');
   assert.equal(report.driver, 'experimental-cdp-stopWorker');
-  assert.match(report.browserVersion ?? '', /^\d+\.\d+\.\d+\.\d+$/);
+  assert.match(PINNED_CHROMIUM_VERSION ?? '', /^\d+\.\d+\.\d+\.\d+$/, 'Cannot determine the pinned Playwright Chromium version');
+  assert.equal(report.browserVersion, PINNED_CHROMIUM_VERSION,
+    'Evidence must come from the Chromium build pinned by the installed Playwright');
   assert.match(report.extensionId ?? '', /^[a-p]{32}$/);
   assert.match(report.runId ?? '', /^[0-9a-f-]{20,}$/i);
   assert.equal(report.evidence?.stopped, true);
@@ -43,11 +60,15 @@ export function validateReport(report, fixture) {
   assert.ok(version, 'Missing selected worker versionId');
   assert.equal(timeline[stopped].data?.versionId, version);
   assert.equal(timeline[decision].data, spec.verdict);
-  const updates = timeline.filter(entry => entry.event === 'cdp.workerVersionUpdated');
-  assert.ok(updates.some(e => e.data?.versionId === version && e.data?.runningStatus === 'stopped'),
-    'Missing CDP stopped observation');
-  assert.ok(updates.some(e => e.data?.versionId === version && e.data?.runningStatus === 'running'),
-    'Missing CDP running observation');
+  const scriptURL = `chrome-extension://${report.extensionId}/background.js`;
+  const observedBetween = (status, start, end) => timeline.some((entry, i) =>
+    i > start && i < end && entry.event === 'cdp.workerVersionUpdated' &&
+    entry.data?.versionId === version && entry.data?.scriptURL === scriptURL &&
+    entry.data?.runningStatus === status);
+  assert.ok(observedBetween('stopped', requested, stopped),
+    'Missing CDP stopped observation between stop request and stop confirmation');
+  assert.ok(observedBetween('running', trigger, resumed),
+    'Missing CDP running observation between wake-up message and recovery confirmation');
 }
 
 async function collect(root) {
@@ -87,7 +108,9 @@ export async function validateEvidenceBatch(proofDir, repeats, negativeDir) {
   return { proofReports: reports.length, negativeReports: negativeDir ? 1 : 0 };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Node resolves the main module through realpath; compare the same way so a
+// symlinked invocation path still runs the gate instead of silently exiting 0.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const [proofDir, repeatText, negativeDir] = process.argv.slice(2);
   validateEvidenceBatch(proofDir, Number(repeatText), negativeDir)
     .then(value => console.log(`Verified lifecycle evidence: ${JSON.stringify(value)}`))

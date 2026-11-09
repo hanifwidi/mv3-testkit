@@ -2,6 +2,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
+import { validateReport } from './check-evidence.mjs';
 
 const root = process.argv[2];
 assert(root, 'Usage: node scripts/check-negative.mjs <negative-project-output-directory>');
@@ -16,13 +17,5 @@ async function walk(path) {
 await walk(root);
 assert.equal(reports.length, 1, 'Expected exactly one fresh negative-control report');
 const [report] = reports;
-assert.equal(report.error, undefined);
-assert.equal(report.browserSource, 'playwright-bundled', 'System-browser explorations do not satisfy the gate');
-assert.equal(report.fixture, 'test-extensions/volatile-state-bug');
-assert.equal(report.verdict, 'FAIL');
-assert.equal(report.evidence.stopped, true);
-assert.equal(report.evidence.runningAgain, true);
-assert.equal(report.evidence.before.counter, 1);
-assert.equal(report.evidence.after.counter, 0);
-assert.notEqual(report.evidence.before.bootId, report.evidence.after.bootId);
+validateReport(report, 'test-extensions/volatile-state-bug');
 console.log('Confirmed: the negative-control failure is real state loss after an observed restart.');

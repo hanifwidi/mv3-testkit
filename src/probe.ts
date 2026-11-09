@@ -163,19 +163,21 @@ export async function probe(extensionPath: string): Promise<Report> {
     // Infrastructure/unsupported transitions are inconclusive, not a diagnosed state bug.
     log('error', report.error);
   } finally {
+    // A cleanup failure voids any verdict but must not replace the root cause:
+    // report.error keeps the first failure and the timeline records every one.
+    const cleanupFailed = (cleanupPhase: string, error: unknown) => {
+      const failure = { phase: cleanupPhase, message: error instanceof Error ? error.message : String(error) };
+      report.verdict = 'INCONCLUSIVE';
+      report.error ??= failure;
+      log('error', failure);
+    };
     try { await context?.close(); }
-    catch (error) {
-      report.verdict = 'INCONCLUSIVE';
-      report.error = { phase: 'cleanup', message: String(error) };
-      log('error', report.error);
-    }
-    try {
-      if (profile) await rm(profile, { recursive: true, force: true });
-      log('profile.removed');
-    } catch (error) {
-      report.verdict = 'INCONCLUSIVE';
-      report.error = { phase: 'profile-cleanup', message: String(error) };
-      log('error', report.error);
+    catch (error) { cleanupFailed('cleanup', error); }
+    if (profile) {
+      try {
+        await rm(profile, { recursive: true, force: true });
+        log('profile.removed');
+      } catch (error) { cleanupFailed('profile-cleanup', error); }
     }
   }
   return report;

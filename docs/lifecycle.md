@@ -76,7 +76,9 @@ No public fixture site or external service is required during browser tests.
 - Each command has bounded readiness waits; absent transitions never become a
   passing test. The outer runner timeout is a final guard, not a readiness signal.
 - `POC_CHROMIUM_PATH` is an explicit exploratory override, recorded in evidence.
-  It cannot satisfy the bundled-browser negative-control checker.
+  It cannot satisfy the bundled-browser negative-control checker. The evidence
+  checkers also require the exact Chromium version pinned by the installed
+  Playwright, so a `PLAYWRIGHT_BROWSERS_PATH` holding another build cannot either.
 
 The added diagnostic value over a basic launcher is the evidence gate, changed-boot
 check, explicit inconclusive state, and controlled healthy/broken comparison. This
