@@ -1,0 +1,21 @@
+{
+  "recordedAt": "2026-11-09T12:37:17.347714+00:00",
+  "command": "pnpm audit --json",
+  "exitCode": 0,
+  "result": {
+    "advisories": {},
+    "metadata": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0
+      },
+      "dependencies": 0,
+      "devDependencies": 161,
+      "optionalDependencies": 29,
+      "totalDependencies": 161
+    }
+  }
+}

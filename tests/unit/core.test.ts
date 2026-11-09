@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { inspectExtension, MV3PreflightError } from '../../src/core/manifest.js';
+import { inspectExtension } from '../../src/core/manifest.js';
 import { lifecycleVerdict, type LifecycleEvidence } from '../../src/core/diagnostics.js';
 
 const evidence: LifecycleEvidence = {

@@ -1,0 +1,7 @@
+packages:
+  - '.'
+
+# Tooling-only dependency remediation for GHSA-g3hv-75wg-m249.
+# Remove once upstream lint dependencies require a patched minimatch themselves.
+overrides:
+  minimatch: 11.0.1

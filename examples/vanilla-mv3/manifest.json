@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "MV3 TestKit first-party counter example",
+  "version": "0.1.0",
+  "permissions": ["storage"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html" }
+}

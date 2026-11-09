@@ -12,6 +12,9 @@ See the [verification report and evidence limits](docs/verification.md).
 Phase 1 has a [separate verification report](docs/phase-1-verification.md).
 The [Phase 2 lifecycle and fixture work](docs/phase-2.md) has its own
 [verification report](docs/phase-2-verification.md); results are tracked per phase.
+The [Phase 3 local-alpha quickstart](docs/quickstart.md) covers CLI setup, reports
+and installing the private tarball. No npm release has been published.
+See [Phase 3 verification](docs/phase-3-verification.md) for actual outcomes.
 
 Requires Node 24, pnpm 11.25.0, and a Playwright-supported OS. Start in this checkout:
 
@@ -43,5 +46,5 @@ attached to tests and written to `<output-directory>/<test>/evidence.json`; HTML
 is generated in `playwright-report/`. All reports stay local.
 
 See [lifecycle design and limits](docs/lifecycle.md) and [reproduction/troubleshooting](docs/reproduction.md).
-The local `doctor` CLI and source API are experimental. CLI `init`/`test`, npm
-publishing, natural-idle guarantees, and the full MVP remain outside this phase.
+The `doctor`, `init`, `test` CLI and source API are experimental. Public npm
+publishing, natural-idle guarantees, and the full release gate remain outstanding.
