@@ -115,3 +115,14 @@ gh pr create --repo hanifwidi/mv3-testkit --draft \
 This does not require putting a token in chat. Git HTTPS push works independently
 of the observed API domain denial. Review the prerequisite phases before merging
 this stacked branch; no merge or public release was performed.
+
+## Final redaction review
+
+An additional synthetic metadata case reproduced a leak in the first redactor:
+`Authorization: Bearer <credential>` removed the scheme but retained the credential.
+The targeted suite reported 8 passed and 1 failed before correction. Redaction now
+consumes the rest of a line after a sensitive assignment, also covering cookie
+lists, quoted JSON keys, access tokens and multiword values. Raw payload fields
+remain omitted. This intentionally may remove additional context from test names.
+The updated source must pass the same lint/unit/package/browser CI gates; the
+earlier source's success is not asserted as verification of this follow-up.

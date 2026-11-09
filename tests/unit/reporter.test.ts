@@ -36,6 +36,9 @@ it('omits raw payloads and accepts only typed browser metadata', () => {
   expect(summary.tests[0]).toMatchObject({ browserVersion: '158.0.8127.18', extensionId: undefined, file: 'tests/check.spec.mjs' });
 });
 it('redacts common secret labels/URLs and escapes HTML metadata', () => {
+  for (const value of ['Authorization: Bearer private-credential', 'Cookie: theme=light; session=private-credential',
+    'password=two words private-credential', '{"token":"private-credential"}', 'access_token=private-credential'])
+    expect(safeText(value)).not.toContain('private-credential');
   const cleaned = safeText('token=abc password="def ghi" https://user:secret@example.com/?key=value');
   expect(cleaned).not.toMatch(/abc|def|ghi|example\.com|user:secret/);
   const test = testCase(['passed']);

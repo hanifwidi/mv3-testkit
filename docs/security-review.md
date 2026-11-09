@@ -16,7 +16,9 @@ Reviewed boundaries:
   prior report. The parent checks matching run identity and both files before
   accepting a runner's zero exit.
 - Report output uses a field allowlist, omits raw payloads by default, redacts
-  common secret labels/URLs and escapes HTML. Heuristic redaction is not a promise
+  common secret labels/URLs and escapes HTML. A sensitive assignment removes the
+  rest of that metadata line, including Bearer/Basic credentials, cookie lists
+  and multiword values; over-redaction is intentional. Heuristic redaction is not a promise
   that user-chosen names contain no secrets. Raw terminal/Playwright artifacts
   require a separate human review before sharing.
 - Existing isolated browser profiles, extension-local document checks, explicit

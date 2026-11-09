@@ -18,7 +18,9 @@ export interface Summary {
 /** Whitelisted metadata only; stdout, errors, attachments and storage are omitted. */
 export function safeText(text: string): string {
   return text.replace(/https?:\/\/[^\s)]+/gi, '[url]')
-    .replace(/\b(token|secret|password|authorization|cookie|api[_-]?key)\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi, '$1=[redacted]')
+    // Consume the rest of the metadata line, including Bearer/Basic credentials,
+    // multi-cookie headers and multiword values. Over-redaction is intentional.
+    .replace(/\b(access[_-]?token|refresh[_-]?token|token|secret|password|authorization|cookie|api[_-]?key)["']?\s*[:=][^\r\n]*/gi, '$1=[redacted]')
     .slice(0, 500);
 }
 function classify(test: TestCase): ReportStatus {
