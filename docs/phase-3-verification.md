@@ -165,4 +165,11 @@ Executed local verification (Node 24.22.1, pnpm 11.25.0, Playwright 1.65.0):
   (actual `153.0.8010.12`, expected `158.0.8127.18`), as intended. No evidence
   files from these runs are committed.
 
-CI on the pinned browser must still confirm these changes.
+GitHub then reported all four workflows successful on `f8e0ac1` with the pinned
+Chromium: Phase [0](https://github.com/hanifwidi/mv3-testkit/actions/runs/42656174069),
+[1](https://github.com/hanifwidi/mv3-testkit/actions/runs/42656174055),
+[2](https://github.com/hanifwidi/mv3-testkit/actions/runs/42656174059) and
+[3](https://github.com/hanifwidi/mv3-testkit/actions/runs/42656174299). Every Phase 0
+step succeeded, including the negative-control checker and the batch evidence
+validator. Both now require `158.0.8127.18`, so the CI reports carried exactly
+that version. This is job step metadata; raw artifacts were not downloaded.
