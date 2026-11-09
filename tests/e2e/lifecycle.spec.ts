@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { chromium, test, expect } from '@playwright/test';
 import { recordedProbe } from './helpers.js';
+import { cleanupAll } from '../../src/resource-cleanup.js';
 
 test('healthy counter survives an observed worker stop and message reactivation', async ({}, info) => {
   const report = await recordedProbe('healthy-counter', info);
@@ -26,13 +27,19 @@ test('content script messages the worker in its isolated world and updates host 
     res.setHeader('Content-Type', 'text/html');
     res.end('<!doctype html><html lang="en"><title>Local MV3 fixture</title><body>Fixture</body></html>');
   });
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', resolve);
-  });
-  const profile = await mkdtemp(join(tmpdir(), 'mv3-testkit-dom-'));
-  let context;
+  let listening = false;
+  let profile: string | undefined;
+  let context: Awaited<ReturnType<typeof chromium.launchPersistentContext>> | undefined;
   try {
+    await new Promise<void>((done, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', () => {
+        server.off('error', reject);
+        done();
+      });
+    });
+    listening = true;
+    profile = await mkdtemp(join(tmpdir(), 'mv3-testkit-dom-'));
     const path = resolve('test-extensions/healthy-counter');
     context = await chromium.launchPersistentContext(profile, {
       channel: 'chromium', headless: process.env.HEADED !== '1',
@@ -48,8 +55,19 @@ test('content script messages the worker in its isolated world and updates host 
     // A website main world is not the extension content-script world.
     expect(await page.evaluate(() => typeof chrome.runtime?.id)).toBe('undefined');
   } finally {
-    await context?.close();
-    await rm(profile, { recursive: true, force: true });
-    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    await cleanupAll([
+      { name: 'browser context', close: async () => { await context?.close(); } },
+      { name: 'temporary profile', close: async () => {
+        if (profile) await rm(profile, { recursive: true, force: true });
+      } },
+      { name: 'fixture HTTP server', close: async () => {
+        if (listening || server.listening) {
+          await new Promise<void>((done, reject) =>
+            server.close((error) => error ? reject(error) : done()));
+        } else {
+          server.closeAllConnections();
+        }
+      } },
+    ]);
   }
 });

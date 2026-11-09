@@ -145,3 +145,14 @@ gh pr create --repo hanifwidi/mv3-testkit --base main \
 Existing Git authentication does not itself prove API authorization. Verify the
 existing binding after enabling the destination before requesting any additional
 credential. Never supply token values in chat.
+
+## Review follow-up (9 November 2026)
+
+The original delivery note above records the restricted Codex Cloud environment at the time of the Phase 0 experiment. Subsequently, PR [#1](https://github.com/hanifwidi/mv3-testkit/pull/1) was created through the connected GitHub integration. The pull request CI for pre-remediation head `f350116e95a2f4917ddc4834feed8eacfcae2039` passed in [run 42575802913](https://github.com/hanifwidi/mv3-testkit/actions/runs/42575802913). Its raw artifact was obtained independently and reviewed: five healthy lifecycle reports showed counter 1 -> 1; five volatile reports showed 1 -> 0; and the negative-control evidence demonstrated observed worker stop, restart, changed boot identity and state loss.
+
+In response to maintainer review, this branch also includes additional protections:
+- Resource cleanup in the content-script E2E test now attempts browser, temporary-profile and HTTP-server disposal independently, with unit tests for cleanup failures.
+- The CI workflow pins GitHub Actions to verified commits, does not retain checkout credentials, and retains read-only job permissions.
+- A new evidence validator rejects missing, duplicate, inconsistent or out-of-sequence lifecycle reports, requires 5 reports for each of the two lifecycle fixtures and one independent negative control, and has tampering-focused tests. CI checks this before uploading artifacts and errors if no artifact files exist.
+
+**Review status:** These remediations still require a successful CI run on their updated commit and maintainer review. Nothing in this addendum is a claim that the new changes already passed GitHub Actions. The existing experimental CDP constraints and natural-idle limitations remain unchanged. The PR stays draft and is not approved for merge or npm publication.
