@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { validateReport, validateEvidenceBatch, PINNED_CHROMIUM_VERSION } from './check-evidence.mjs';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
@@ -117,5 +117,16 @@ test('standalone negative checker accepts real restart evidence and rejects a st
     r.timeline.unshift(running);
     await writeFile(path, JSON.stringify(r));
     await assert.rejects(run(), error => error.code === 1 && /CDP running observation/.test(error.stderr));
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+test('batch CLI fails on missing evidence even when invoked through a symlinked path', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'mv3-evidence-cli-test-'));
+  const scripts = fileURLToPath(new URL('.', import.meta.url));
+  try {
+    await symlink(scripts, join(dir, 'linked-scripts'));
+    for (const cli of [join(scripts, 'check-evidence.mjs'), join(dir, 'linked-scripts', 'check-evidence.mjs')]) {
+      await assert.rejects(promisify(execFile)(process.execPath, [cli, join(dir, 'missing'), '5']),
+        error => error.code === 1, `${cli} must exit 1`);
+    }
   } finally { await rm(dir, { recursive: true, force: true }); }
 });

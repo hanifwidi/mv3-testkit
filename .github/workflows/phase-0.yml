@@ -26,6 +26,8 @@ jobs:
       - name: Verify negative control actually fails for state loss
         shell: bash
         run: |
+          # A stale report must never satisfy the checker if the runner fails early.
+          rm -rf artifacts/negative artifacts/negative-html
           set +e
           POC_OUTPUT_DIR=artifacts/negative pnpm test:negative > negative-control.log 2>&1
           result=$?

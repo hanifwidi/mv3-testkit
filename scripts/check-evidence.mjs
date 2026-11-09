@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
@@ -108,7 +108,9 @@ export async function validateEvidenceBatch(proofDir, repeats, negativeDir) {
   return { proofReports: reports.length, negativeReports: negativeDir ? 1 : 0 };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Node resolves the main module through realpath; compare the same way so a
+// symlinked invocation path still runs the gate instead of silently exiting 0.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const [proofDir, repeatText, negativeDir] = process.argv.slice(2);
   validateEvidenceBatch(proofDir, Number(repeatText), negativeDir)
     .then(value => console.log(`Verified lifecycle evidence: ${JSON.stringify(value)}`))

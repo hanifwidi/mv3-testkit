@@ -23,7 +23,7 @@ pnpm install --frozen-lockfile
 pnpm exec playwright install --with-deps chromium
 pnpm test
 pnpm test:repeat
-pnpm doctor --extension test-extensions/healthy-counter
+pnpm run doctor --extension test-extensions/healthy-counter
 ```
 
 The default suite expects the persistent fixture to produce `PASS` and the broken
@@ -34,12 +34,14 @@ identity. Missing evidence produces `INCONCLUSIVE` and fails the acceptance test
 Run the separate negative control to see an ordinary persistence assertion fail:
 
 ```sh
+# Remove old output first so a runner that fails early cannot leave a stale report:
+rm -rf artifacts/negative artifacts/negative-html
 POC_OUTPUT_DIR=artifacts/negative pnpm test:negative
 # Expected exit 1 ONLY when the JSON proves the state-loss bug:
 node scripts/check-negative.mjs artifacts/negative
 ```
 
-The second command rejects infrastructure failures; a nonzero runner exit by itself
+The checker rejects infrastructure failures; a nonzero runner exit by itself
 does not demonstrate detection. Playwright clears the selected output directory
 on each run. Preserve reports before reusing that directory. The negative control
 defaults to `artifacts/negative`, so it never clears the main suite's `test-results/`.

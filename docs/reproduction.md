@@ -28,6 +28,7 @@ including the negative-control evidence gate. Local cloud browser runs remain bl
 The negative project deliberately fails. Verify both exit status and evidence:
 
 ```sh
+rm -rf artifacts/negative artifacts/negative-html
 set +e
 POC_OUTPUT_DIR=artifacts/negative pnpm test:negative > negative-control.log 2>&1
 result=$?
