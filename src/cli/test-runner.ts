@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
+import { constants } from 'node:os';
 import { mkdir, mkdtemp, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,6 +40,12 @@ export function testArguments(options: ReturnType<typeof parseTestOptions>, dire
   return args;
 }
 
+/** Shell convention 128 + signal number, so SIGKILL (e.g. OOM) is not reported as SIGTERM. */
+export function childExitCode(code: number | null, signal: NodeJS.Signals | null): number {
+  if (code !== null) return code;
+  return 128 + ((signal && constants.signals[signal]) || constants.signals.SIGTERM);
+}
+
 async function runNode(cli: string, args: string[], env: NodeJS.ProcessEnv): Promise<number> {
   return new Promise((accept, reject) => {
     const child = spawn(process.execPath, [cli, ...args], { stdio: 'inherit', shell: false, env });
@@ -47,7 +54,7 @@ async function runNode(cli: string, args: string[], env: NodeJS.ProcessEnv): Pro
     const cleanup = () => { process.off('SIGINT', interrupt); process.off('SIGTERM', terminate); };
     process.on('SIGINT', interrupt); process.on('SIGTERM', terminate);
     child.once('error', error => { cleanup(); reject(error); });
-    child.once('close', (code, signal) => { cleanup(); accept(code ?? (signal === 'SIGINT' ? 130 : 143)); });
+    child.once('close', (code, signal) => { cleanup(); accept(childExitCode(code, signal)); });
   });
 }
 
