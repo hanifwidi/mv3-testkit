@@ -24,12 +24,33 @@ actual CI runner rather than silently switching to a policy-managed system brows
 
 ## Browser gate
 
-Pending push/CI at the time of this initial report. Required: Phase 0, Phase 1 and
-Phase 2 workflows all pass on the new source. The Phase 2 project runs five
-repetitions with retries disabled: popup/options plus storage restart, controlled
-late-listener cold start plus positive recovery, and invalid-manifest preflight.
-The existing workflows continue to check healthy persistence and volatile-state
-loss. A failed observation is an inconclusive result, never successful bug detection.
+**PASS on the pinned Ubuntu 24.04 CI configuration**, source commit `09b9b2d`.
+All three push workflows have successful conclusions for every job step:
+
+- [Phase 2 run 42614046489](https://github.com/hanifwidi/mv3-testkit/actions/runs/42614046489):
+  frozen install, bundled Chromium, build/typecheck/unit suites and three acceptance
+  cases repeated five times. This configures fifteen cases: ten browser scenarios
+  and five preflight controls. Tests require actual document rendering, preserved
+  local/session counters after a verified restart, and a controlled messaging FAIL
+  after cold start followed by successful explicit listener registration.
+- [Phase 1 run 42614043698](https://github.com/hanifwidi/mv3-testkit/actions/runs/42614043698):
+  five core cases repeated three times, including healthy/volatile state handling,
+  nested workers, actual doctor readiness and a missing-browser control.
+- [Phase 0 run 42614043588](https://github.com/hanifwidi/mv3-testkit/actions/runs/42614043588):
+  three proof tests repeated five times, the expected negative-control failure,
+  and ordered CDP evidence validation all succeeded.
+
+All artifact upload steps succeeded. [Captured public step metadata](evidence/ci-phase-2-09b9b2d.json)
+records exact source commit, retrieval time and individual conclusions. Raw logs,
+boot IDs and attachments were not downloaded from GitHub in this session; these
+are verified command conclusions, not a fabricated JSON payload transcript.
+The test sources have no skips, expected-failure annotations or automatic retries.
+Configured repetition counts and assertion outcomes are inferred from those test
+sources and successful commands. The controlled messaging FAIL is a diagnostic
+that the acceptance test asserts, not a hidden failing runner result.
+
+**Recommendation: technical GO for Phase 2 on this pinned configuration, subject
+to maintainer review.** Natural-idle and release readiness are not established.
 
 The new workflow uploads `phase-2-evidence` with Playwright results, lifecycle JSON
 and fixture diagnostic attachments. Public step conclusions must be distinguished
@@ -47,7 +68,22 @@ unverified. No general reliability or release claim is made.
 
 ## Review delivery
 
-The existing session previously denied GitHub API access. After pushing the tested
-branch, draft PR creation will be attempted against `feat/phase-1-core-engine`.
-If it remains blocked, the branch and prepared description will be available for
-manual creation. No PR number is claimed until creation is confirmed.
+The tested branch is pushed. `gh pr create --draft`, with base
+`feat/phase-1-core-engine`, was attempted and returned exit 1: POST
+`https://api.github.com/graphql` Forbidden. Existing Git read/push works; this is
+an observed API access denial, not evidence that another Git credential is needed.
+A new PR has **not** been created or assigned a number in this session.
+
+[Open the Phase 2 comparison](https://github.com/hanifwidi/mv3-testkit/compare/feat/phase-1-core-engine...feat/phase-2-lifecycle-fixtures?expand=1)
+and use the [prepared description](phase-2-pr-body.md) to create a draft manually,
+or retry after the running environment's API access is enabled:
+
+```sh
+gh pr create --repo hanifwidi/mv3-testkit --draft \
+  --base feat/phase-1-core-engine --head feat/phase-2-lifecycle-fixtures \
+  --title "Phase 2: observed lifecycle, context helpers and regression fixtures" \
+  --body-file docs/phase-2-pr-body.md
+```
+
+Review/merge Phase 1 separately before integrating this stacked Phase 2 branch.
+No main update, PR merge, npm publication or Phase 3 work was performed.

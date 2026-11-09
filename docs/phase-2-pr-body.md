@@ -12,8 +12,15 @@ Review/merge the prerequisites separately; do not automatically merge this PR.
 
 Local TypeScript/build passed, 115 unit/integration tests passed, and 21 evidence
 validator tests passed. Invalid-manifest preflight passed without launching a
-browser. Real-browser results are recorded in the linked report after CI completes;
-earlier Phase 1 successes are not claimed as evidence of these new fixtures.
+browser. Implementation commit `09b9b2d` passed all three CI workflows:
+
+- [Phase 2](https://github.com/hanifwidi/mv3-testkit/actions/runs/42614046489): all three acceptance cases repeated five times.
+- [Phase 1](https://github.com/hanifwidi/mv3-testkit/actions/runs/42614043698): all five core cases repeated three times.
+- [Phase 0](https://github.com/hanifwidi/mv3-testkit/actions/runs/42614043588): repeated proof suite, negative control and ordered evidence gate.
+
+All artifact uploads succeeded. Public per-step conclusions were verified and
+saved; raw CI payloads were not downloaded in this session. Recommendation:
+**technical GO on the pinned configuration**, subject to maintainer review.
 
 The Phase 2 gate repeats three acceptance cases five times without retries,
 including actual document/storage restart and controlled late-listener messaging.
