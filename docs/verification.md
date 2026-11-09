@@ -181,6 +181,18 @@ Executed local verification:
 - `git diff --check` — exit 0.
 
 The current local cloud instance still reports the restricted network policy.
-Real-browser validation of this correction will run in the existing CI workflow
-on push; the earlier CI success is not claimed as a result for this new change.
-The PR remains draft; no merge, publication, or Phase 1 implementation is performed.
+Real-browser validation of this correction subsequently succeeded on implementation
+commit `70b6af842b80cb422a88f1c502a02d886e053176` in
+[run 42596679542](https://github.com/hanifwidi/mv3-testkit/actions/runs/42596679542).
+Public job metadata confirms success for all 15 steps, including bundled Chromium
+installation, the three browser checks repeated five times, the negative control,
+and the strengthened batch evidence validator. The artifact upload also succeeded.
+[Captured step metadata](evidence/ci-ordered-transitions-42596679542.json) records
+that observation. Raw CI payloads were not downloaded in this session.
+
+The remote `main` tree already contained the preceding Phase 0 implementation via
+squashed PR #1 (`ddfae29`), identical to this branch's prior `401ba9c` tree. That
+`main` ancestry is incorporated into this feature branch, preserving the validator
+fix, so PR #3 presents only the follow-up changes instead of the original Phase 0
+implementation again. This does not change `main` or merge PR #3. The PR remains
+draft; no publication or Phase 1 implementation is performed.
