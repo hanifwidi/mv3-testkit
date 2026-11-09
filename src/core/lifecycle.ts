@@ -1,81 +1,105 @@
 import type { CDPSession, Page } from '@playwright/test';
 import type { LifecycleEvidence } from './diagnostics.js';
+import { WorkerTransitionObserver, type CDPWorkerVersion } from './worker-observer.js';
 
 export class LifecycleUnverifiedError extends Error {
-  constructor(message: string) { super(message); this.name = 'LifecycleUnverifiedError'; }
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'LifecycleUnverifiedError';
+  }
 }
 
-interface WorkerVersion {
-  versionId: string;
-  scriptURL: string;
-  runningStatus: string;
-}
-
-const now = () => new Date().toISOString();
-
-/** Experimental driver: deliberately stops a worker; does not simulate natural idle. */
-export async function forceWorkerRestart(options: {
-  page: Page;
+export interface RestartOptions {
   workerURL: string;
   trigger: () => Promise<void>;
   getBootIdentity: () => Promise<string>;
   timeoutMs?: number;
-}): Promise<LifecycleEvidence> {
-  const timeout = options.timeoutMs ?? 10_000;
-  if (!Number.isFinite(timeout) || timeout <= 0) throw new Error('timeoutMs must be positive');
+}
+
+function bounded<T>(operation: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    operation,
+    new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new LifecycleUnverifiedError(`Timed out: ${label}`)), timeoutMs);
+    }),
+  ]).finally(() => { if (timer) clearTimeout(timer); });
+}
+
+/**
+ * Experimental forced-stop CDP implementation. A matching worker must emit
+ * fresh stopped and running transitions. A replaced registration/version is
+ * unsupported and explicitly INCONCLUSIVE, not a successful restart.
+ */
+export async function observeWorkerRestart(session: CDPSession, options: RestartOptions): Promise<LifecycleEvidence> {
+  const timeoutMs = options.timeoutMs ?? 10_000;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new RangeError('timeoutMs must be positive');
+  if (!/^chrome-extension:\/\/[a-p]{32}\/.+/.test(options.workerURL)) {
+    throw new LifecycleUnverifiedError('Expected a concrete chrome-extension worker URL');
+  }
+
+  const observer = new WorkerTransitionObserver(options.workerURL);
   const evidence: LifecycleEvidence = {
-    workerScriptURL: options.workerURL, initialVersionId: '',
-    stopped: false, restarted: false, identityChanged: false, events: [],
+    workerScriptURL: options.workerURL,
+    initialVersionId: '',
+    stopped: false, restarted: false, identityChanged: false,
+    events: observer.events,
   };
-  const session: CDPSession = await options.page.context().newCDPSession(options.page);
-  const active = new Map<string, WorkerVersion>();
-  const waiters = new Set<() => void>();
-  const onUpdated = ({ versions }: { versions: WorkerVersion[] }) => {
-    for (const version of versions) {
-      if (version.scriptURL !== options.workerURL) continue;
-      active.set(version.versionId, version);
-      evidence.events.push({ at: now(), status: version.runningStatus, versionId: version.versionId });
-    }
-    for (const wake of [...waiters]) wake();
-  };
-  const awaitState = (status: string, versionId?: string, minIndex = 0): Promise<WorkerVersion> =>
-    new Promise((accept, reject) => {
-      const find = () => {
-        const event = evidence.events.slice(minIndex).find(e =>
-          e.status === status && (!versionId || e.versionId === versionId));
-        if (!event) return;
-        const value = active.get(event.versionId);
-        if (!value) return;
-        cleanup();
-        accept({ ...value, versionId: event.versionId, runningStatus: event.status });
-      };
-      const timer = setTimeout(() => { cleanup(); reject(new LifecycleUnverifiedError(`No observed ${status} transition`)); }, timeout);
-      const cleanup = () => { clearTimeout(timer); waiters.delete(find); };
-      waiters.add(find);
-      find();
-    });
+  const onUpdated = (payload: { versions: CDPWorkerVersion[] }) => observer.observe(payload.versions);
   session.on('ServiceWorker.workerVersionUpdated', onUpdated);
   try {
-    await session.send('ServiceWorker.enable');
-    const initial = await awaitState('running');
-    const beforeBootId = await options.getBootIdentity();
-    if (!beforeBootId) throw new LifecycleUnverifiedError('Empty boot identity');
+    await bounded(session.send('ServiceWorker.enable'), timeoutMs, 'ServiceWorker.enable');
+    const initial = await observer.waitFor('running', { timeoutMs });
     evidence.initialVersionId = initial.versionId;
-    const transitionStart = evidence.events.length;
-    await session.send('ServiceWorker.stopWorker', { versionId: initial.versionId });
-    await awaitState('stopped', initial.versionId, transitionStart);
+    const beforeBootId = await bounded(Promise.resolve().then(options.getBootIdentity), timeoutMs, 'initial boot identity');
+    if (typeof beforeBootId !== 'string' || !beforeBootId) throw new LifecycleUnverifiedError('Missing initial boot identity');
+
+    // Capture the cursor BEFORE sending stop: CDP may emit stopped during send.
+    const stopCursor = observer.cursor;
+    await bounded(session.send('ServiceWorker.stopWorker', { versionId: initial.versionId }), timeoutMs, 'ServiceWorker.stopWorker');
+    const stopped = await observer.waitFor('stopped', { versionId: initial.versionId, after: stopCursor, timeoutMs });
+    if (initial.registrationId && stopped.registrationId && initial.registrationId !== stopped.registrationId) {
+      throw new LifecycleUnverifiedError('Worker registration changed while stopping');
+    }
     evidence.stopped = true;
-    const restartStart = evidence.events.length;
-    await options.trigger();
-    const resumed = await awaitState('running', undefined, restartStart);
+
+    // Capture before trigger: asynchronous runtime messages can restart immediately.
+    const restartCursor = observer.cursor;
+    await bounded(Promise.resolve().then(options.trigger), timeoutMs, 'restart trigger');
+    const resumed = await observer.waitFor('running', { versionId: initial.versionId, after: restartCursor, timeoutMs });
+    if (initial.registrationId && resumed.registrationId && initial.registrationId !== resumed.registrationId) {
+      throw new LifecycleUnverifiedError('Worker registration changed during restart');
+    }
     evidence.finalVersionId = resumed.versionId;
     evidence.restarted = true;
-    const afterBootId = await options.getBootIdentity();
-    evidence.identityChanged = !!afterBootId && beforeBootId !== afterBootId;
-    if (!evidence.identityChanged) throw new LifecycleUnverifiedError('Boot identity did not change');
+    const afterBootId = await bounded(Promise.resolve().then(options.getBootIdentity), timeoutMs, 'restarted boot identity');
+    evidence.identityChanged = typeof afterBootId === 'string' && !!afterBootId && beforeBootId !== afterBootId;
+    if (!evidence.identityChanged) throw new LifecycleUnverifiedError('Worker boot identity did not change');
     return evidence;
   } finally {
     session.off('ServiceWorker.workerVersionUpdated', onUpdated);
-    await session.detach();
+  }
+}
+
+/**
+ * Opens a short-lived page-bound CDP observer. Never attaches to the worker
+ * debugger, which would interfere with natural worker lifetime.
+ */
+export async function forceWorkerRestart(options: RestartOptions & { page: Page }): Promise<LifecycleEvidence> {
+  const session = await options.page.context().newCDPSession(options.page);
+  let failure: unknown;
+  try {
+    return await observeWorkerRestart(session, options);
+  } catch (error) {
+    failure = error;
+    throw error;
+  } finally {
+    try {
+      await session.detach();
+    } catch (cleanupError) {
+      if (!failure) throw cleanupError;
+      // Keep both failures observable: do not replace the root cause.
+      throw new AggregateError([failure, cleanupError], 'Worker lifecycle and CDP cleanup both failed');
+    }
   }
 }

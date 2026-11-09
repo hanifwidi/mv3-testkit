@@ -17,12 +17,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm typecheck && pnpm test:unit
-      - run: pnpm test:core
+      - name: Repeat core real-browser tests three times without retries
+        run: pnpm exec playwright test --project=core --repeat-each=3
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: phase-1-evidence
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
           path: |
             test-results/

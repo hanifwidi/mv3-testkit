@@ -8,12 +8,21 @@ import { lifecycleVerdict, type LifecycleEvidence } from '../../src/core/diagnos
 const evidence: LifecycleEvidence = {
   workerScriptURL: 'chrome-extension://' + 'a'.repeat(32) + '/worker.js',
   initialVersionId: 'version-1', finalVersionId: 'version-1',
-  stopped: true, restarted: true, identityChanged: true, events: [],
+  stopped: true, restarted: true, identityChanged: true, events: [
+    { at: '2026-11-09T00:00:00Z', status: 'running', versionId: 'version-1' },
+    { at: '2026-11-09T00:00:01Z', status: 'stopped', versionId: 'version-1' },
+    { at: '2026-11-09T00:00:02Z', status: 'running', versionId: 'version-1' },
+  ],
 };
 describe('diagnostics', () => {
   it('uses state-specific diagnostic codes', () => {
     expect(lifecycleVerdict(evidence, true).code).toBe('STATE_PRESERVED');
     expect(lifecycleVerdict(evidence, false).code).toBe('STATE_LOST');
+  });
+  it('rejects impossible or fabricated event sequences', () => {
+    expect(lifecycleVerdict({ ...evidence, events: [] }, true).verdict).toBe('INCONCLUSIVE');
+    expect(lifecycleVerdict({ ...evidence, finalVersionId: 'version-2' }, true).verdict).toBe('INCONCLUSIVE');
+    expect(lifecycleVerdict({ ...evidence, events: evidence.events.filter(e => e.status !== 'stopped') }, true).verdict).toBe('INCONCLUSIVE');
   });
   it('never passes incomplete worker evidence', () => {
     expect(lifecycleVerdict({ ...evidence, restarted: false }, true).verdict).toBe('INCONCLUSIVE');
@@ -44,6 +53,16 @@ describe('MV3 manifest preflight', () => {
   });
   it('rejects paths escaping an extension', async () => {
     const path = await fixture('../outside.js');
+    try { await expect(inspectExtension(path)).rejects.toMatchObject({ code: 'WORKER_PATH' }); }
+    finally { await rm(path, { recursive: true, force: true }); }
+  });
+  it('rejects malformed permissions', async () => {
+    const path = await fixture('nested/sw.js', { permissions: 'storage' });
+    try { await expect(inspectExtension(path)).rejects.toMatchObject({ code: 'MANIFEST_PERMISSIONS' }); }
+    finally { await rm(path, { recursive: true, force: true }); }
+  });
+  it('rejects non-normalized worker paths', async () => {
+    const path = await fixture('nested//sw.js');
     try { await expect(inspectExtension(path)).rejects.toMatchObject({ code: 'WORKER_PATH' }); }
     finally { await rm(path, { recursive: true, force: true }); }
   });

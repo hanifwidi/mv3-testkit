@@ -2,6 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium, type BrowserContext, type Page } from '@playwright/test';
+import { cleanupAll } from '../resource-cleanup.js';
 import { inspectExtension } from './manifest.js';
 
 export interface LoadedExtension {
@@ -20,11 +21,41 @@ export interface LaunchOptions {
   discoveryTimeoutMs?: number;
 }
 
+export function extensionPageURL(id: string, path: string): string {
+  if (!/^[a-p]{32}$/.test(id)) throw new TypeError('Invalid Chrome extension ID');
+  // Deliberately restrictive: tests should navigate only to extension-local HTML,
+  // never to chrome-extension://<id>//host or escaped external destinations.
+  if (!path || !/^[A-Za-z0-9_./-]+$/.test(path) || path.startsWith('/') ||
+      path.split('/').some(segment => !segment || segment === '.' || segment === '..')) {
+    throw new TypeError('Extension page must be a plain relative extension-local path');
+  }
+  return `chrome-extension://${id}/${path}`;
+}
+
+function isTargetWorker(url: string, workerPath: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'chrome-extension:' && /^[a-p]{32}$/.test(parsed.hostname) &&
+      decodeURIComponent(parsed.pathname) === '/' + workerPath;
+  } catch { return false; }
+}
+
+/**
+ * Execute only trusted builds. Chrome extension code runs with its declared
+ * permissions in a newly isolated temporary browser profile.
+ */
 export async function launchExtension(options: LaunchOptions): Promise<LoadedExtension> {
   const inspected = await inspectExtension(options.extensionPath);
+  const discoveryTimeoutMs = options.discoveryTimeoutMs ?? 15_000;
+  if (!Number.isFinite(discoveryTimeoutMs) || discoveryTimeoutMs <= 0)
+    throw new RangeError('discoveryTimeoutMs must be positive');
+
   const profile = await mkdtemp(join(tmpdir(), 'mv3-core-'));
   let context: BrowserContext | undefined;
-  let closed = false;
+  const dispose = async () => cleanupAll([
+    { name: 'browser context', close: async () => { await context?.close(); } },
+    { name: 'temporary profile', close: async () => { await rm(profile, { recursive: true, force: true }); } },
+  ]);
   try {
     context = await chromium.launchPersistentContext(profile, {
       channel: 'chromium',
@@ -33,47 +64,35 @@ export async function launchExtension(options: LaunchOptions): Promise<LoadedExt
       ignoreDefaultArgs: ['--disable-extensions'],
       args: [`--disable-extensions-except=${inspected.path}`, `--load-extension=${inspected.path}`],
     });
-    const expectedSuffix = '/' + inspected.workerPath;
-    const matches = (url: string) => {
-      try {
-        const parsed = new URL(url);
-        return parsed.protocol === 'chrome-extension:' && /^[a-p]{32}$/.test(parsed.hostname) &&
-          decodeURIComponent(parsed.pathname) === expectedSuffix;
-      } catch { return false; }
-    };
-    const worker = context.serviceWorkers().find(w => matches(w.url())) ??
-      await context.waitForEvent('serviceworker', {
-        predicate: w => matches(w.url()),
-        timeout: options.discoveryTimeoutMs ?? 15_000,
-      });
+    const current = context;
+    const match = (url: string) => isTargetWorker(url, inspected.workerPath);
+    const worker = current.serviceWorkers().find(w => match(w.url())) ??
+      await current.waitForEvent('serviceworker', { predicate: w => match(w.url()), timeout: discoveryTimeoutMs });
     const id = new URL(worker.url()).hostname;
-    const browserContext = context;
+    let closing: Promise<void> | undefined;
     return {
-      context: browserContext, id, workerURL: worker.url(), manifest: inspected.manifest,
-      async newExtensionPage(path: string) {
-        if (!path || path.startsWith('/') || path.split('/').includes('..') || path.includes('?') || path.includes('#')) {
-          throw new Error('Extension page must be a simple extension-local relative path');
-        }
-        const page = await browserContext.newPage();
+      context: current, id, workerURL: worker.url(), manifest: inspected.manifest,
+      async newExtensionPage(path: string): Promise<Page> {
+        const url = extensionPageURL(id, path);
+        if (closing) throw new Error('Cannot create a page after extension cleanup started');
+        const page = await current.newPage();
         try {
-          await page.goto(`chrome-extension://${id}/${path}`);
+          await page.goto(url);
           return page;
-        } catch (error) { await page.close(); throw error; }
+        } catch (cause) {
+          try { await page.close(); }
+          catch (closeError) { throw new AggregateError([cause, closeError], 'Page navigation and cleanup failed'); }
+          throw cause;
+        }
       },
-      async close() {
-        if (closed) return;
-        closed = true;
-        const errors: unknown[] = [];
-        try { await browserContext.close(); } catch (error) { errors.push(error); }
-        try { await rm(profile, { recursive: true, force: true }); } catch (error) { errors.push(error); }
-        if (errors.length) throw new AggregateError(errors, 'Extension cleanup failed');
+      close(): Promise<void> {
+        // Concurrent callers share cleanup success/failure instead of skipping it.
+        return closing ??= dispose();
       },
     };
   } catch (cause) {
-    const errors: unknown[] = [cause];
-    try { await context?.close(); } catch (error) { errors.push(error); }
-    try { await rm(profile, { recursive: true, force: true }); } catch (error) { errors.push(error); }
-    if (errors.length > 1) throw new AggregateError(errors, 'Extension launch and cleanup failed');
+    try { await dispose(); }
+    catch (cleanupError) { throw new AggregateError([cause, cleanupError], 'Extension launch and cleanup failed'); }
     throw cause;
   }
 }

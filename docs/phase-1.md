@@ -32,3 +32,30 @@ Do not run unpacked untrusted extension code; this executes code in a real Chrom
 - Before declaring Phase 1 complete, extend coverage to worker updates, unavailable restart, CDP detachment, cleanup exceptions, and independent user projects.
 
 Run `pnpm typecheck`, `pnpm test:unit`, `pnpm test:core` with Playwright Chromium installed, and existing Phase 0 gates.
+
+## Phase 1 hardening follow-up
+
+The draft PR now includes negative-control coverage for the reusable driver, a real
+nested-worker fixture and explicit worker lifecycle error tests. These are meant to
+catch stale event reuse, worker version replacement, CDP stop failures, unresponsive
+restart triggers, unchanged boot identities and registration changes.
+
+- Lifecycle events are matched by worker script URL and exact worker version;
+  another version's start must not produce a false PASS.
+- Operations and consumer callbacks have bounded deadlines. Promise deadlines do
+  not cancel already-running consumer operations; do not use callbacks with
+  irreversible side effects or allow them to retain browser references.
+- Cleanup is shared between concurrent close calls and attempts to remove both
+  browser context and owned temporary profile even if one fails.
+- Extension page URLs are intentionally restricted to normalized ASCII-local paths.
+- Manifest preflight intentionally accepts normalized ASCII script paths only;
+  more complex manifest paths require explicitly tested support.
+- Diagnostics require matching observed stopped/running events, not just boolean
+  flags. Neither this nor the forced-stop driver proves natural idle.
+- Testing is performed in isolated browser profiles with **trusted extension code
+  only**; never load a random third-party extension in an unrestricted CI runner.
+
+### QA still required
+The updated commit must pass Phase 0 and Phase 1 Actions, including three repetitions
+of each Phase 1 browser test. CI success is not sufficient for release or merge
+approval without code review. Track the branch commit and CI run in the PR description.
