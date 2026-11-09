@@ -29,12 +29,25 @@ Chromium, so the full browser suite is delegated to the actual GitHub CI runner.
 
 ## CI acceptance
 
-Results for this new implementation are pending its push at the time this section
-was written. Earlier Phase 1 successes do not count as verification of the new CLI.
-Required steps: frozen install, bundled Chromium installation, TypeScript/build,
-unit/integration suites, and five core tests repeated three times without retries.
-The existing Phase 0 workflow must also pass the healthy/broken fixture gate,
-negative control and ordered CDP evidence validation.
+**PASS on the pinned Ubuntu 24.04 CI configuration.** Source branch implementation
+commit `8b4e93d` passed both pull-request workflows:
+
+- [Phase 1 run 42600590753](https://github.com/hanifwidi/mv3-testkit/actions/runs/42600590753):
+  frozen install, bundled Chromium install, TypeScript/build, unit/integration
+  suites, and the five selected core tests repeated three times without retries
+  all have successful job-step conclusions. This configures fifteen checks,
+  including three intentional missing-browser controls.
+- [Phase 0 run 42600590749](https://github.com/hanifwidi/mv3-testkit/actions/runs/42600590749):
+  unit/integration and evidence-validator tests, three proof tests repeated five
+  times, the expected negative-control failure and ordered CDP evidence validation
+  all have successful job-step conclusions.
+- Both evidence artifact upload steps succeeded.
+
+[Captured public step metadata](evidence/ci-phase-1-8b4e93d.json) records the source
+URLs, retrieval time and individual conclusions. Raw CI logs/JSON attachments were
+not downloaded in this session; individual browser version strings and fixture
+payloads are not invented here. Configured repetition counts and assertion
+outcomes are inferred from the committed test selection and successful commands.
 
 Core acceptance checks cover healthy-state preservation, detection of volatile
 state loss, a nested worker entry, doctor loading from file-relative JSON config,
@@ -49,6 +62,10 @@ browser updates/new worker versions, external projects, concurrent storage edits
 toolbar popup behavior and other platforms are unverified. The source API and
 local doctor are experimental. General manifest validation, full CLI DX, package
 publication and Phase 2 fixture expansion are not completion claims of this work.
+
+**Recommendation: technical GO for completion of the Phase 1 engine/skeleton on
+the pinned configuration, subject to maintainer review.** This does not authorize
+Phase 2, a release, or an automatic merge. The existing PR remains a draft.
 
 Maintainer review is required before merging the draft. A successful doctor
 verifies startup/discovery/cleanup, not worker restart or extension business logic.
