@@ -128,3 +128,23 @@ describe('Chromium manifest dialect and extension path', () => {
     finally { await rm(root, { recursive: true, force: true }); }
   });
 });
+
+describe('Chromium-compatible manifest fields', () => {
+  async function load(text: string) {
+    const root = await mkdtemp(join(tmpdir(), 'mv3-compat-'));
+    await writeFile(join(root, 'sw.js'), '// fixture');
+    await writeFile(join(root, 'manifest.json'), text);
+    try { return await inspectExtension(root); } finally { await rm(root, { recursive: true, force: true }); }
+  }
+  it('accepts a classic worker type, \\xNN escapes and raw line breaks in strings, as Chromium does', async () => {
+    const { manifest } = await load('{ "manifest_version": 3, "name": "a\\x41 \\\\x41", "version": "1",\n'
+      + '"description": "line one\nline two", "background": { "service_worker": "sw.js", "type": "classic" } }');
+    expect(manifest.name).toBe('aA \\x41');
+    expect((manifest as unknown as { description: string }).description).toBe('line one\nline two');
+    expect(manifest.background.type).toBe('classic');
+  });
+  it('still rejects unknown worker types', async () => {
+    await expect(load('{ "manifest_version": 3, "name": "a", "version": "1", "background": { "service_worker": "sw.js", "type": "shared" } }'))
+      .rejects.toMatchObject({ code: 'WORKER_TYPE' });
+  });
+});

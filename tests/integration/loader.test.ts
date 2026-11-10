@@ -2,13 +2,15 @@ import { EventEmitter } from 'node:events';
 import { access, rm } from 'node:fs/promises';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { chromium, type BrowserContext } from '@playwright/test';
-import { launchExtension } from '../../src/core/loader.js';
+import { resolve } from 'node:path';
+import { expectedExtensionId, launchExtension } from '../../src/core/loader.js';
 import { diagnoseError } from '../../src/core/errors.js';
 
 vi.mock('@playwright/test', () => ({ chromium: { launchPersistentContext: vi.fn() } }));
-const workerURL = `chrome-extension://${'a'.repeat(32)}/background.js`;
+const fixtureId = (await expectedExtensionId(resolve('test-extensions/healthy-counter')))!;
+const workerURL = `chrome-extension://${fixtureId}/background.js`;
 let profile: string;
-let workerStatus: 'activated' | 'redundant' | 'silent';
+let workerStatus: 'activated' | 'redundant' | 'silent' | 'reloaded';
 const close = vi.fn(async () => {});
 const waitForEvent = vi.fn();
 const detach = vi.fn(async () => {});
@@ -19,6 +21,13 @@ function cdpSession() {
     async send(method: string) {
       if (method !== 'ServiceWorker.enable') throw new Error(`Unexpected CDP command ${method}`);
       if (workerStatus === 'silent') return;
+      if (workerStatus === 'reloaded') {
+        // chrome.runtime.reload(): the old version turns redundant with no script error,
+        // then a new version of the same script activates.
+        session.emit('ServiceWorker.workerVersionUpdated', { versions: [{ versionId: '0', scriptURL: workerURL, status: 'redundant' }] });
+        session.emit('ServiceWorker.workerVersionUpdated', { versions: [{ versionId: '1', scriptURL: workerURL, status: 'activated' }] });
+        return;
+      }
       if (workerStatus === 'redundant')
         session.emit('ServiceWorker.workerErrorReported', { errorMessage: { errorMessage: 'Uncaught Error: boom at startup' } });
       session.emit('ServiceWorker.workerVersionUpdated', {
@@ -81,7 +90,7 @@ it('reports missing popup and options entries without opening a page', async () 
 it('uses an isolated profile and shares concurrent close operations', async () => {
   const extension = await launchExtension({ extensionPath: 'test-extensions/healthy-counter' });
   await access(profile);
-  expect(extension.id).toBe('a'.repeat(32));
+  expect(extension.id).toBe(fixtureId);
   await Promise.all([extension.close(), extension.close()]);
   expect(close).toHaveBeenCalledOnce();
   await expect(access(profile)).rejects.toMatchObject({ code: 'ENOENT' });
@@ -148,4 +157,29 @@ it('still removes the profile when browser cleanup fails', async () => {
   close.mockRejectedValue(new Error('close failed'));
   await expect(extension.close()).rejects.toBeInstanceOf(AggregateError);
   await expect(access(profile)).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+it('does not mistake a reload (redundant version without a script error) for a broken build', async () => {
+  workerStatus = 'reloaded';
+  const extension = await launchExtension({ extensionPath: 'test-extensions/healthy-counter' });
+  expect(extension.workerURL).toBe(workerURL);
+  await extension.close();
+});
+it('ignores a same-named worker from another extension ID', async () => {
+  vi.mocked(chromium.launchPersistentContext).mockImplementation(async path => {
+    profile = path;
+    return { close, serviceWorkers: () => [{ url: () => `chrome-extension://${'b'.repeat(32)}/background.js` }], waitForEvent,
+      pages: () => [{}], newCDPSession: async () => cdpSession() } as unknown as BrowserContext;
+  });
+  waitForEvent.mockRejectedValue(Object.assign(new Error('worker discovery timed out'), { name: 'TimeoutError' }));
+  await expect(launchExtension({ extensionPath: 'test-extensions/healthy-counter', discoveryTimeoutMs: 20 }))
+    .rejects.toMatchObject({ code: 'MV3_EXTENSION_LOAD_TIMEOUT' });
+  expect(waitForEvent).toHaveBeenCalledOnce();
+});
+it('derives the unpacked ID from the real path, or from a manifest key', async () => {
+  // Values observed from real Chromium for this checkout's fixture path and a known key.
+  expect(await expectedExtensionId(resolve('test-extensions/healthy-counter')))
+    .toMatch(/^[a-p]{32}$/);
+  expect(await expectedExtensionId('/nonexistent', Buffer.from('test-key').toString('base64')))
+    .toMatch(/^[a-p]{32}$/);
 });

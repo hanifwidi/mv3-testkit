@@ -58,8 +58,9 @@ Save it as `mv3-testkit.config.json` in your extension project, then run
 directory. Unknown fields, nonboolean headless settings, and invalid/overflowing
 timeouts fail early. Only one of `--extension` and `--config` is accepted.
 
-Preflight verifies Chrome numeric versions (1–4 parts, each 0–65535, no leading
-zeros, not all zero), worker paths, and declared popup/options files. It follows
+Preflight verifies Chrome numeric versions the way Chromium's loader does (1–4
+parts, no leading zeros; all-zero versions and parts above 65535 load), worker
+type (absent, `classic` or `module`), worker paths, and declared popup/options files. It follows
 symlinks to reject entries escaping the extension root. Like Chromium, it accepts a
 leading UTF-8 BOM and `//` or `/* */` comments in `manifest.json` (not trailing
 commas). Extension paths containing a comma are rejected, because Chromium splits
@@ -79,6 +80,13 @@ Chrome manifest field or inspect every imported worker dependency.
 | `MV3_WORKER_REGISTRATION_FAILED` | FAIL: Chromium discarded the worker, e.g. a script error at startup; the message carries Chrome's error |
 | `MV3_CLEANUP_FAILED` / `MV3_OPERATION_AND_CLEANUP_FAILED` | Resource cleanup failed; no readiness PASS |
 | `MV3_READY` | Manifest checked, real browser launched, worker discovered and activated, owned resources closed |
+
+Discovery accepts only a worker whose extension ID is the one Chromium derives
+for this build (SHA-256 of the manifest `key`, or of the directory's real path),
+so a same-named worker from another extension cannot be mistaken for it. A worker
+version that turns `redundant` counts as a registration failure only when Chrome
+also reports a script error; a self-reload (`chrome.runtime.reload()`) keeps waiting
+for the new version to activate.
 
 The preflight API retains field-level `MV3PreflightError.code` values. `diagnoseError`
 maps them to the doctor codes above. Lifecycle diagnostics retain `STATE_PRESERVED`,

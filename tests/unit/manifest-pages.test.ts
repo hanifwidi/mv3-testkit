@@ -13,14 +13,15 @@ async function fixture(overrides: Record<string, unknown>) {
   }));
   return dir;
 }
-it.each(['1', '1.2', '1.2.3', '1.2.3.4', '65535.0'])(
+// Verified against real Chromium: all-zero and >65535 parts load; leading zeros do not.
+it.each(['1', '1.2', '1.2.3', '1.2.3.4', '65535.0', '0', '0.0.0', '0.0.0.0', '65536'])(
   'accepts valid Chrome version %s', async version => {
     const dir = await fixture({ version });
     try { expect((await inspectExtension(dir)).manifest.version).toBe(version); }
     finally { await rm(dir, { recursive: true, force: true }); }
   },
 );
-it.each(['0', '0.0.0', '01.2.3', '65536', '1.2.3.4.5', '1.2.-1'])(
+it.each(['01.2.3', '1.2.3.4.5', '1.2.-1', ' 1', '1.', '4294967296'])(
   'rejects invalid Chrome version %s', async version => {
     const dir = await fixture({ version });
     try { await expect(inspectExtension(dir)).rejects.toMatchObject({ code: 'MANIFEST_IDENTITY' }); }

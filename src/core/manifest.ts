@@ -5,7 +5,7 @@ export type MV3Manifest = {
   manifest_version: 3;
   name: string;
   version: string;
-  background: { service_worker: string; type?: 'module' };
+  background: { service_worker: string; type?: 'classic' | 'module' };
   permissions?: string[];
   action?: { default_popup?: string };
   options_page?: string;
@@ -32,7 +32,10 @@ export function parseManifestJSON(text: string): unknown {
     if (char === '"') {
       let end = i + 1;
       while (end < text.length && text[end] !== '"') end += text[end] === '\\' ? 2 : 1;
-      json += text.slice(i, end + 1);
+      // Chromium's reader also accepts \xNN escapes and raw line breaks in strings.
+      json += text.slice(i, end + 1)
+        .replace(/\\(\\|x([0-9A-Fa-f]{2}))/g, (match, _escape, hex) => hex ? `\\u00${hex}` : match)
+        .replace(/\r/g, '\\r').replace(/\n/g, '\\n');
       i = end + 1;
     } else if (char === '/' && text[i + 1] === '/') {
       while (i < text.length && text[i] !== '\n') i++;
@@ -56,7 +59,9 @@ function record(value: unknown): value is Record<string, unknown> {
 function validVersion(value: unknown): value is string {
   if (typeof value !== 'string' || !/^(0|[1-9]\d*)(\.(0|[1-9]\d*)){0,3}$/.test(value)) return false;
   const parts = value.split('.').map(Number);
-  return parts.every(n => n <= 65535) && parts.some(n => n > 0);
+  // Matches Chromium's loader: 1-4 parts, no leading zeros; all-zero and parts
+  // above 65535 (up to uint32) still load.
+  return parts.every(n => n <= 4_294_967_295);
 }
 
 async function checkPage(root: string, entry: unknown, field: string): Promise<void> {
@@ -98,8 +103,8 @@ export async function inspectExtension(inputPath: string): Promise<{
       !value.background.service_worker.trim()) {
     throw new MV3PreflightError('WORKER_MISSING', 'An MV3 background.service_worker is required for lifecycle testing');
   }
-  if (value.background.type !== undefined && value.background.type !== 'module')
-    throw new MV3PreflightError('WORKER_TYPE', 'Only absent or module worker type is valid for MV3');
+  if (value.background.type !== undefined && value.background.type !== 'classic' && value.background.type !== 'module')
+    throw new MV3PreflightError('WORKER_TYPE', 'Worker type must be absent, "classic" or "module"');
   if (value.permissions !== undefined &&
       (!Array.isArray(value.permissions) || !value.permissions.every(p => typeof p === 'string'))) {
     throw new MV3PreflightError('MANIFEST_PERMISSIONS', 'Permissions must be an array of strings');
