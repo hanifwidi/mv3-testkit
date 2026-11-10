@@ -86,3 +86,9 @@ it('omits the unnamed root suite and project from report titles', () => {
   test.titlePath = () => ['', '', 'counter.spec.mjs', 'counter survives a restart'];
   expect(summarize([test], '/project', result).tests[0].title).toBe('counter.spec.mjs › counter survives a restart');
 });
+it.each(['timedout', 'interrupted'] as const)('does not claim PASS when Playwright ended %s, even if every collected test passed', status => {
+  expect(summarize([testCase(['passed'])], '/project', { ...result, status } as FullResult).verdict).toBe('INCONCLUSIVE');
+});
+it('fails a run Playwright marked failed even without a failing test or runner error', () => {
+  expect(summarize([testCase(['passed'])], '/project', { ...result, status: 'failed' } as FullResult).verdict).toBe('FAIL');
+});

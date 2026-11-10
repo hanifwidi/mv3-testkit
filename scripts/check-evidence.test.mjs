@@ -130,3 +130,62 @@ test('batch CLI fails on missing evidence even when invoked through a symlinked 
     }
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+// Outcome and count assertions of the gate: each must reject on its own.
+test('rejects a report whose verdict, counter or identity fields do not match its fixture', () => {
+  const cases = [
+    ['healthy reported as state loss', r => { r.verdict = 'FAIL'; r.evidence.after.counter = 0; r.timeline.at(-1).data = 'FAIL'; }, healthy],
+    ['healthy counter lost with PASS verdict', r => { r.evidence.after.counter = 0; }, healthy],
+    ['volatile reported as preserved', r => { r.verdict = 'PASS'; r.evidence.after.counter = 1; r.timeline.at(-1).data = 'PASS'; }, broken],
+    ['timeline verdict disagrees', r => { r.timeline.at(-1).data = 'PASS'; }, broken],
+    ['only the report verdict is wrong', r => { r.verdict = 'FAIL'; }, healthy],
+    ['fixture field mismatched', r => { r.fixture = broken; }, healthy],
+    ['explicit browser override', r => { r.browserSource = 'explicit-override'; }, healthy],
+    ['other driver', r => { r.driver = 'natural-idle'; }, healthy],
+    ['malformed extension ID', r => { r.extensionId = 'not-an-id'; }, healthy],
+    ['unknown fixture', r => { r.fixture = 'test-extensions/other'; }, 'test-extensions/other'],
+  ];
+  for (const [name, mutate, fixture] of cases) {
+    const r = report(fixture === broken ? broken : healthy);
+    mutate(r);
+    assert.throws(() => validateReport(r, fixture), undefined, name);
+  }
+});
+test('rejects batches with missing, extra or unbalanced repetitions and extra negative reports', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'mv3-evidence-count-test-'));
+  let n = 0;
+  const id = () => `${String(++n).padStart(8, '0')}-1234-1234-1234-123456789abc`;
+  const write = async (root, fixtures) => {
+    await mkdir(root, { recursive: true });
+    for (const fixture of fixtures) {
+      const sub = join(root, `r${++n}`);
+      await mkdir(sub);
+      await writeFile(join(sub, 'evidence.json'), JSON.stringify(report(fixture, id())));
+    }
+  };
+  try {
+    const one = join(dir, 'one-repetition');
+    await write(one, [healthy, broken]);
+    await assert.rejects(validateEvidenceBatch(one, 2), /two lifecycle reports per repetition/);
+    const unbalanced = join(dir, 'unbalanced');
+    await write(unbalanced, [healthy, healthy, healthy, broken]);
+    await assert.rejects(validateEvidenceBatch(unbalanced, 2), /Wrong repeat count/);
+    const extra = join(dir, 'extra');
+    await write(extra, [healthy, broken, healthy]);
+    await assert.rejects(validateEvidenceBatch(extra, 1), /two lifecycle reports per repetition/);
+    const negatives = join(dir, 'two-negatives');
+    await write(negatives, [broken, broken]);
+    await assert.rejects(validateEvidenceBatch(one, 1, negatives), /exactly one negative-control report/);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+test('standalone negative checker rejects a directory holding a stale report next to the fresh one', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'mv3-negative-two-test-'));
+  const checker = fileURLToPath(new URL('./check-negative.mjs', import.meta.url));
+  try {
+    for (const [sub, runId] of [['old', 'cccccccc-1234-1234-1234-123456789abc'], ['new', 'dddddddd-1234-1234-1234-123456789abc']]) {
+      await mkdir(join(dir, sub));
+      await writeFile(join(dir, sub, 'evidence.json'), JSON.stringify(report(broken, runId)));
+    }
+    await assert.rejects(promisify(execFile)(process.execPath, [checker, dir]), error => error.code === 1);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});

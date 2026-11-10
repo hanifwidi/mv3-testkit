@@ -1,4 +1,5 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium, type BrowserContext, type Page } from '@playwright/test';
@@ -59,16 +60,26 @@ async function waitForActivation(context: BrowserContext, workerURL: string, tim
         };
         const timer = setTimeout(() => finish(Object.assign(
           new Error(`Worker did not activate within ${timeoutMs}ms`), { name: 'TimeoutError' })), timeoutMs);
+        // A version can also turn redundant without any script error, e.g. when
+        // the extension calls chrome.runtime.reload(); a newer version then
+        // activates. Only a redundant version plus Chrome's error report is a
+        // build failure; otherwise keep waiting (a stall ends as a timeout).
+        let redundant = false;
+        const failIfBroken = () => {
+          if (redundant && errors.length) finish(new MV3RuntimeError('MV3_WORKER_REGISTRATION_FAILED',
+            `The extension worker failed to register: ${errors.join('; ')}`));
+        };
         session.on('ServiceWorker.workerErrorReported', ({ errorMessage }) => {
           if (errorMessage.errorMessage && !errors.includes(errorMessage.errorMessage)) errors.push(errorMessage.errorMessage);
+          failIfBroken();
         });
         session.on('ServiceWorker.workerVersionUpdated', ({ versions }) => {
           for (const version of versions) {
             if (version.scriptURL !== workerURL) continue;
-            if (version.status === 'activated') finish();
-            else if (version.status === 'redundant') finish(new MV3RuntimeError('MV3_WORKER_REGISTRATION_FAILED',
-              `The extension worker failed to register${errors.length ? `: ${errors.join('; ')}` : ''}`));
+            if (version.status === 'activated') return finish();
+            if (version.status === 'redundant') redundant = true;
           }
+          failIfBroken();
         });
         session.send('ServiceWorker.enable').catch(finish);
       });
@@ -94,6 +105,19 @@ export function extensionPageURL(id: string, path: string): string {
     throw new TypeError('Extension page must be a plain relative extension-local path');
   }
   return `chrome-extension://${id}/${path}`;
+}
+
+/**
+ * Chromium's ID for an unpacked extension: SHA-256 of the manifest key, or of
+ * the extension directory's real path, first 32 hex digits mapped 0-f to a-p.
+ * Windows hashes a differently encoded path, so the check is skipped there.
+ */
+export async function expectedExtensionId(path: string, key?: unknown): Promise<string | undefined> {
+  const source = typeof key === 'string' && key ? Buffer.from(key, 'base64')
+    : process.platform === 'win32' ? undefined : await realpath(path);
+  if (source === undefined) return undefined;
+  return [...createHash('sha256').update(source).digest('hex').slice(0, 32)]
+    .map(digit => String.fromCharCode(97 + parseInt(digit, 16))).join('');
 }
 
 function isTargetWorker(url: string, workerPath: string): boolean {
@@ -133,7 +157,11 @@ export async function launchExtension(options: LaunchOptions): Promise<LoadedExt
     });
     phase = 'discovery';
     const current = context;
-    const match = (url: string) => isTargetWorker(url, inspected.workerPath);
+    // Bind discovery to the extension Chromium loaded from this path, not any
+    // extension (component, policy, headed profile) with a same-named worker.
+    const expectedId = await expectedExtensionId(inspected.path, (inspected.manifest as { key?: unknown }).key);
+    const match = (url: string) => isTargetWorker(url, inspected.workerPath) &&
+      (!expectedId || new URL(url).hostname === expectedId);
     const worker = current.serviceWorkers().find(w => match(w.url())) ??
       await current.waitForEvent('serviceworker', { predicate: w => match(w.url()), timeout: discoveryTimeoutMs });
     phase = 'activation';

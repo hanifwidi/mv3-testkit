@@ -171,3 +171,26 @@ describe('timer bounds', () => {
     expect(() => new WorkerTransitionObserver(workerURL).waitFor('running', { timeoutMs: 2 ** 31 })).toThrow(RangeError);
   });
 });
+
+describe('boot identity validation', () => {
+  it.each([undefined, '', 42])('rejects an unusable initial identity %j instead of producing a verdict', async identity => {
+    const cdp = new FakeCDP();
+    await expect(observeWorkerRestart(cdp as unknown as CDPSession, {
+      workerURL, timeoutMs: 40, trigger: async () => { cdp.restart(); },
+      getBootIdentity: async () => identity as unknown as string,
+    })).rejects.toThrow(/Missing initial boot identity/);
+  });
+  it.each([undefined, ''])('rejects an unusable restarted identity %j', async identity => {
+    const cdp = new FakeCDP();
+    let calls = 0;
+    let failure: unknown;
+    try {
+      await observeWorkerRestart(cdp as unknown as CDPSession, {
+        workerURL, timeoutMs: 40, trigger: async () => { cdp.restart(); },
+        getBootIdentity: async () => (calls++ === 0 ? 'boot-1' : identity) as unknown as string,
+      });
+    } catch (error) { failure = error; }
+    expect(failure).toBeInstanceOf(LifecycleUnverifiedError);
+    expect((failure as LifecycleUnverifiedError).evidence?.identityChanged).toBe(false);
+  });
+});
