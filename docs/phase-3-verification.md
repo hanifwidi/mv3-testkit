@@ -205,3 +205,27 @@ caveat as the second review pass): lint, typecheck and build exit 0; 173 Vitest
 and 23 validator tests passed; proof ×5, core ×3 and phase2 ×5 each 15 passed;
 the negative-control runner exited 1; and the installed-tarball smoke passed
 with the browser workflow. CI on the pinned browser must confirm the merge commit.
+
+## Completion review (10 November 2026)
+
+The security, test-effectiveness and documentation scopes that the pre-merge
+review could not run were run on `main` (`c1d6341`), together with a fresh look at
+the recently changed loader, parser, init and reporter code and a completeness
+critic. Two independent verifiers checked each candidate (security: none found).
+
+| Finding | Evidence | Change |
+| --- | --- | --- |
+| A worker version turning `redundant` without a script error (an extension calling `chrome.runtime.reload()`) was a false `MV3_WORKER_REGISTRATION_FAILED` | Real Chromium: 1 of 11 launches FAIL before; 11 of 11 PASS after | FAIL only with Chrome's error report; otherwise wait for the new version |
+| Discovery accepted any extension's worker with the same path | Computed IDs matched real Chromium for plain and symlinked paths | The worker must have the ID Chromium derives from the manifest `key` or the directory's real path (skipped on Windows) |
+| Preflight failed manifests Chromium loads: `background.type: "classic"`, versions `0`, `0.0.0`, parts above 65535, `\xNN` escapes and raw line breaks in strings | Real Chromium loaded each; it still rejects leading zeros, `1.`, ` 1`, `1.2.-1` | Rules aligned with Chromium |
+| Evidence-gate tests did not protect the verdict, counter, fixture, source, driver and report-count assertions | Deleting them left all tests passing | New cases; a mutation run of each assertion now fails the suite |
+| No tests for boot-identity validation, `diagnoseError` mapping, or Playwright's run status in the report verdict | Mutations survived | New regression tests |
+| README read the checker's exit 1 as proof of the bug | Checker exits 1 when it rejects evidence | README now shows runner exit 1, then checker exit 0 |
+
+Not changed: a nonzero Playwright exit is passed through even when the summary
+says INCONCLUSIVE (documented contract), and the critic's untested concern that a
+SIGTERM-cancelled run can leave a temporary profile behind was not reproduced here.
+
+Local verification (same browser caveat as above): lint, typecheck and build exit
+0; 194 Vitest and 26 validator tests passed; proof ×5, core ×3 and phase2 ×5 each
+15 passed; the negative-control runner exited 1; the installed-tarball smoke passed.

@@ -36,8 +36,12 @@ Run the separate negative control to see an ordinary persistence assertion fail:
 ```sh
 # Remove old output first so a runner that fails early cannot leave a stale report:
 rm -rf artifacts/negative artifacts/negative-html
+set +e
 POC_OUTPUT_DIR=artifacts/negative pnpm test:negative
-# Expected exit 1 ONLY when the JSON proves the state-loss bug:
+result=$?
+set -e
+test "$result" -eq 1   # the persistence assertion must fail
+# Must exit 0: confirms the failure is real state loss after an observed restart.
 node scripts/check-negative.mjs artifacts/negative
 ```
 
